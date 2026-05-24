@@ -73,7 +73,6 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
 
   // Custom Squash & Pull Transitions
   const playerExpansion = useRef(new Animated.Value(0)).current;
-  const [shouldRender, setShouldRender] = useState(visible);
 
   // Sympathetic scale springs
   const playScale = useRef(new Animated.Value(1)).current;
@@ -132,24 +131,19 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   // Trigger custom open/close animations
   useEffect(() => {
     if (visible) {
-      setShouldRender(true);
       Animated.timing(playerExpansion, {
         toValue: 1,
-        duration: 700,
-        easing: Easing.bezier(0.25, 0.8, 0.25, 1.0), // Buttery-smooth decelerate curve
+        duration: 650,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1.0), // Luxurious slow-start ease-in-out curve
         useNativeDriver: true,
       }).start();
     } else {
       Animated.timing(playerExpansion, {
         toValue: 0,
-        duration: 700,
-        easing: Easing.bezier(0.25, 0.8, 0.25, 1.0),
+        duration: 600,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1.0),
         useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) {
-          setShouldRender(false);
-        }
-      });
+      }).start();
     }
   }, [visible]);
 
@@ -171,7 +165,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     };
   }, [sleepTimeRemaining, isPlaying]);
 
-  if (!currentTrack || (!shouldRender && !visible)) return null;
+  if (!currentTrack) return null;
 
   const isLiked = likes.includes(currentTrack.id);
 
