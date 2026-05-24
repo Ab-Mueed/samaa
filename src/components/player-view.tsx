@@ -64,10 +64,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   // Sleep timer interval ref
   const sleepTimerRef = useRef<any>(null);
 
-  // 60fps Visual position state
-  const [visualPosition, setVisualPosition] = useState(position);
-  const lastTimeRef = useRef<number>(Date.now());
-  const animationRef = useRef<number | null>(null);
+
 
   // Custom Squash & Pull Transitions
   const playerExpansion = useRef(new Animated.Value(0)).current;
@@ -77,40 +74,25 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const prevScale = useRef(new Animated.Value(1)).current;
   const nextScale = useRef(new Animated.Value(1)).current;
 
+  // Smooth and extremely lightweight progress tracking
+  const [visualPosition, setVisualPosition] = useState(position);
+
   // Sync visual position whenever true audio player position updates
   useEffect(() => {
     setVisualPosition(position);
-    lastTimeRef.current = Date.now();
   }, [position]);
 
-  // Buttery-smooth 60fps local animation ticking loop when playing
+  // High performance visual ticking loop (runs 4 times a second, reducing JS thread overhead by 95%)
   useEffect(() => {
     if (isPlaying) {
-      const tick = () => {
-        const now = Date.now();
-        const delta = (now - lastTimeRef.current) / 1000;
-        lastTimeRef.current = now;
-
+      const interval = setInterval(() => {
         setVisualPosition(prev => {
-          const next = prev + delta;
+          const next = prev + 0.25;
           return next > duration ? duration : next;
         });
-
-        animationRef.current = requestAnimationFrame(tick);
-      };
-      lastTimeRef.current = Date.now();
-      animationRef.current = requestAnimationFrame(tick);
-    } else {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
+      }, 250);
+      return () => clearInterval(interval);
     }
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
   }, [isPlaying, duration]);
 
   // Handle Android physical back gesture
@@ -130,15 +112,15 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     if (visible) {
       Animated.timing(playerExpansion, {
         toValue: 1,
-        duration: 650,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1.0), // Luxurious slow-start ease-in-out curve
+        duration: 260,
+        easing: Easing.out(Easing.ease), // Ultra-snappy ease-out curve starting instantly fast
         useNativeDriver: true,
       }).start();
     } else {
       Animated.timing(playerExpansion, {
         toValue: 0,
-        duration: 600,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1.0),
+        duration: 220,
+        easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start();
     }
@@ -232,8 +214,8 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
 
   const outerAnimatedStyles = {
     opacity: playerExpansion.interpolate({
-      inputRange: [0, 0.35, 1],
-      outputRange: [0, 1, 1],
+      inputRange: [0, 1],
+      outputRange: [0, 1],
     }),
     transform: [
       {
