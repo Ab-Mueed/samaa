@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-export type ThemeAccent = 'rose' | 'teal' | 'purple' | 'indigo' | 'slate' | 'amber';
+export type ThemeAccent = 'rose' | 'teal' | 'purple' | 'indigo' | 'slate' | 'amber' | 'amoled';
 
 export const ACCENT_PALETTES: Record<ThemeAccent, {
   light: {
@@ -196,6 +196,34 @@ export const ACCENT_PALETTES: Record<ThemeAccent, {
       playerBackground: '#352902',
       accentColor: '#FABF14',
       accentContainer: '#5C4400',
+    }
+  },
+  amoled: {
+    light: {
+      text: '#121212',
+      background: '#FFFFFF',
+      backgroundElement: '#F2F2F2',
+      backgroundSelected: '#E0E0E0',
+      textSecondary: '#666666',
+      primary: '#1C1C1C',
+      onPrimary: '#FFFFFF',
+      outline: '#8C8C8C',
+      playerBackground: '#F7F7F7',
+      accentColor: '#1C1C1C',
+      accentContainer: '#EAEAEA',
+    },
+    dark: {
+      text: '#FFFFFF',
+      background: '#000000',
+      backgroundElement: '#1E1E1E',
+      backgroundSelected: '#2D2D2D',
+      textSecondary: '#A5A5A5',
+      primary: '#E5E5E5',
+      onPrimary: '#000000',
+      outline: '#737373',
+      playerBackground: '#0F0F0F',
+      accentColor: '#E5E5E5',
+      accentContainer: '#333333',
     }
   }
 };

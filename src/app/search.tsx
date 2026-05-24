@@ -28,7 +28,8 @@ const PRESET_THEMES: { id: ThemeAccent; name: string; color: string }[] = [
   { id: 'purple', name: 'Royal Purple', color: '#7E2A8F' },
   { id: 'indigo', name: 'Indigo Ocean', color: '#005FAF' },
   { id: 'slate', name: 'Charcoal Slate', color: '#4F5E70' },
-  { id: 'amber', name: 'Forest Amber', color: '#785A00' }
+  { id: 'amber', name: 'Forest Amber', color: '#785A00' },
+  { id: 'amoled', name: 'AMOLED Dark', color: '#000000' }
 ];
 
 export default function SearchScreen() {
