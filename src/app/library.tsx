@@ -94,7 +94,7 @@ export default function LibraryScreen() {
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playlistsScroll}>
-              {/* Liked Songs Playlist Card */}
+              {/* Favorites Playlist Card */}
               <Pressable 
                 onPress={() => setShowLikedSongsModal(true)}
                 style={({ pressed }) => [
@@ -103,10 +103,14 @@ export default function LibraryScreen() {
                   pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }
                 ]}
               >
-                <View style={[styles.likedSongsIconContainer, { backgroundColor: theme.primary }]}>
-                  <Icons.Heart size={26} color="#FFFFFF" fill="#FFFFFF" />
-                </View>
-                <ThemedText style={styles.playlistName} numberOfLines={1}>Liked Songs</ThemedText>
+                {likedTracks.length > 0 ? (
+                  <Image source={{ uri: likedTracks[0].coverUrl }} style={styles.playlistArt} />
+                ) : (
+                  <View style={[styles.likedSongsIconContainer, { backgroundColor: theme.primary }]}>
+                    <Icons.Heart size={26} color="#FFFFFF" fill="#FFFFFF" />
+                  </View>
+                )}
+                <ThemedText style={styles.playlistName} numberOfLines={1}>Favorites</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">{likedTracks.length} items</ThemedText>
               </Pressable>
 
@@ -151,39 +155,7 @@ export default function LibraryScreen() {
             </View>
           )}
 
-          {/* FAVORITE TRACKS SECTION */}
-          <View style={[styles.sectionContainer, { marginTop: Spacing.four }]}>
-            <ThemedText style={styles.sectionTitle}>Favorites</ThemedText>
-            {likedTracks.length > 0 ? (
-              <View style={[styles.favoritesList, { backgroundColor: theme.backgroundElement }]}>
-                {likedTracks.map((track) => (
-                  <Pressable
-                    key={track.id}
-                    onPress={() => playTrack(track)}
-                    style={({ pressed }) => [styles.favoriteItem, pressed && { opacity: 0.7 }]}
-                  >
-                    <Image source={{ uri: track.coverUrl }} style={styles.favoriteArt} />
-                    <View style={{ flex: 1 }}>
-                      <ThemedText style={{ fontWeight: 'bold', fontSize: 15 }} numberOfLines={1}>
-                        {track.title}
-                      </ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                        {track.artist}
-                      </ThemedText>
-                    </View>
-                    <Icons.Play size={18} color={theme.primary} />
-                  </Pressable>
-                ))}
-              </View>
-            ) : (
-              <View style={[styles.emptyBox, { backgroundColor: theme.backgroundElement }]}>
-                <Icons.Heart size={26} color={theme.textSecondary} />
-                <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: Spacing.one, textAlign: 'center' }}>
-                  No liked Nasheeds yet. Tap the heart on songs to add them!
-                </ThemedText>
-              </View>
-            )}
-          </View>
+
 
           {/* Padding for bottom player */}
           <View style={{ height: 160 }} />
@@ -200,7 +172,7 @@ export default function LibraryScreen() {
             <Pressable onPress={() => setShowLikedSongsModal(false)} style={[styles.modalOverlay, { justifyContent: 'flex-end', alignItems: 'stretch' }]}>
               <View style={[styles.likedSongsSheet, { backgroundColor: theme.background }]}>
                 <View style={styles.sheetHeader}>
-                  <ThemedText style={styles.sheetTitle}>Liked Nasheeds</ThemedText>
+                  <ThemedText style={styles.sheetTitle}>Favorites</ThemedText>
                   <Pressable onPress={() => setShowLikedSongsModal(false)} style={styles.closeTextBtn}>
                     <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
                   </Pressable>
@@ -356,29 +328,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
   },
-  favoritesList: {
-    borderRadius: 24,
-    padding: Spacing.two,
-    gap: Spacing.one,
-  },
-  favoriteItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.two,
-    borderRadius: 16,
-    gap: Spacing.two,
-  },
-  favoriteArt: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-  },
-  emptyBox: {
-    borderRadius: 24,
-    padding: Spacing.five,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  // Removed duplicate Favorites styles to keep layout clean
   artistsScroll: {
     gap: Spacing.three,
   },

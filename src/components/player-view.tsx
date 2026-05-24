@@ -1,27 +1,27 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  Pressable, 
-  ScrollView, 
-  SafeAreaView, 
-  Platform,
-  Dimensions,
-  Share,
-  Alert,
+import { BottomTabInset, Spacing } from '@/constants/theme';
+import { usePlayer } from '@/context/player-context';
+import { useTheme } from '@/hooks/use-theme';
+import { Image } from 'expo-image';
+import { useEffect, useRef, useState } from 'react';
+import {
   ActivityIndicator,
+  Alert,
   Animated,
   BackHandler,
-  Modal
+  Dimensions,
+  Easing,
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
-import Svg, { Path, Line } from 'react-native-svg';
-import { usePlayer, Track } from '@/context/player-context';
-import { ThemedText } from './themed-text';
+import Svg, { Line, Path } from 'react-native-svg';
 import { Icons } from './icons';
-import { useTheme } from '@/hooks/use-theme';
-import { Spacing, BottomTabInset } from '@/constants/theme';
+import { ThemedText } from './themed-text';
 
 interface PlayerViewProps {
   visible: boolean;
@@ -31,21 +31,21 @@ interface PlayerViewProps {
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export function PlayerView({ visible, onClose }: PlayerViewProps) {
-  const { 
-    currentTrack, 
-    isPlaying, 
+  const {
+    currentTrack,
+    isPlaying,
     isBuffering,
-    position, 
-    duration, 
-    togglePlay, 
-    nextTrack, 
-    prevTrack, 
-    seekTo, 
-    likes, 
+    position,
+    duration,
+    togglePlay,
+    nextTrack,
+    prevTrack,
+    seekTo,
+    likes,
     toggleLike,
-    isShuffle, 
-    isRepeat, 
-    toggleShuffle, 
+    isShuffle,
+    isRepeat,
+    toggleShuffle,
     toggleRepeat,
     queue,
     playTrack
@@ -58,7 +58,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const [showQueue, setShowQueue] = useState(false);
   const [showSleepTimer, setShowSleepTimer] = useState(false);
   const [sleepTimeRemaining, setSleepTimeRemaining] = useState<number | null>(null);
-  
+
   // Custom slider width layout tracker
   const [progressBarWidth, setProgressBarWidth] = useState(0);
 
@@ -73,7 +73,6 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
 
   // Custom Squash & Pull Transitions
   const playerExpansion = useRef(new Animated.Value(0)).current;
-  const borderAnim = useRef(new Animated.Value(36)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
   // Sympathetic scale springs
@@ -94,12 +93,12 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
         const now = Date.now();
         const delta = (now - lastTimeRef.current) / 1000;
         lastTimeRef.current = now;
-        
+
         setVisualPosition(prev => {
           const next = prev + delta;
           return next > duration ? duration : next;
         });
-        
+
         setWavePhase(prev => prev + 0.15); // Horizontally flows the wave at 60fps
         animationRef.current = requestAnimationFrame(tick);
       };
@@ -130,37 +129,23 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     }
   }, [visible]);
 
-  // Trigger custom open/close squash animations
+  // Trigger custom open/close animations
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
-      Animated.parallel([
-        Animated.spring(playerExpansion, {
-          toValue: 1,
-          friction: 8,
-          tension: 35,
-          useNativeDriver: true,
-        }),
-        Animated.spring(borderAnim, {
-          toValue: 0,
-          friction: 8,
-          tension: 35,
-          useNativeDriver: false, // borderRadius requires false
-        })
-      ]).start();
+      Animated.timing(playerExpansion, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.bezier(0.25, 0.8, 0.25, 1.0), // Buttery-smooth decelerate curve
+        useNativeDriver: true,
+      }).start();
     } else {
-      Animated.parallel([
-        Animated.timing(playerExpansion, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(borderAnim, {
-          toValue: 36,
-          duration: 250,
-          useNativeDriver: false,
-        })
-      ]).start(({ finished }) => {
+      Animated.timing(playerExpansion, {
+        toValue: 0,
+        duration: 700,
+        easing: Easing.bezier(0.25, 0.8, 0.25, 1.0),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
         if (finished) {
           setShouldRender(false);
         }
@@ -213,7 +198,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     const period = 14; // wave frequency
     const amplitude = 3.5; // wave height
     const step = 2; // draw segment every 2 pixels for continuous curves
-    
+
     for (let x = 0; x <= width; x += step) {
       const angle = (x / period) * Math.PI * 2 - phase;
       const y = 10 + Math.sin(angle) * amplitude;
@@ -230,59 +215,29 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const playedPercent = duration > 0 ? Math.max(0, Math.min(visualPosition / duration, 1)) : 0;
   const currentThumbX = playedPercent * progressBarWidth;
 
-  // Sympathetic physics bounce triggers
+  // Elegant button press micro-interactions
   const handlePlayPress = () => {
-    Animated.parallel([
-      Animated.sequence([
-        Animated.spring(playScale, { toValue: 0.88, friction: 3, tension: 40, useNativeDriver: true }),
-        Animated.spring(playScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }),
-      ]),
-      Animated.sequence([
-        Animated.spring(prevScale, { toValue: 1.1, friction: 4, tension: 35, useNativeDriver: true }),
-        Animated.spring(prevScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
-      ]),
-      Animated.sequence([
-        Animated.spring(nextScale, { toValue: 1.1, friction: 4, tension: 35, useNativeDriver: true }),
-        Animated.spring(nextScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
-      ]),
+    Animated.sequence([
+      Animated.spring(playScale, { toValue: 0.92, friction: 5, tension: 50, useNativeDriver: true }),
+      Animated.spring(playScale, { toValue: 1, friction: 5, tension: 50, useNativeDriver: true }),
     ]).start();
 
     togglePlay();
   };
 
   const handleNextPress = () => {
-    Animated.parallel([
-      Animated.sequence([
-        Animated.spring(nextScale, { toValue: 0.86, friction: 3, tension: 45, useNativeDriver: true }),
-        Animated.spring(nextScale, { toValue: 1, friction: 3, tension: 45, useNativeDriver: true }),
-      ]),
-      Animated.sequence([
-        Animated.spring(playScale, { toValue: 1.08, friction: 4, tension: 35, useNativeDriver: true }),
-        Animated.spring(playScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
-      ]),
-      Animated.sequence([
-        Animated.spring(prevScale, { toValue: 1.08, friction: 4, tension: 35, useNativeDriver: true }),
-        Animated.spring(prevScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
-      ]),
+    Animated.sequence([
+      Animated.spring(nextScale, { toValue: 0.9, friction: 5, tension: 50, useNativeDriver: true }),
+      Animated.spring(nextScale, { toValue: 1, friction: 5, tension: 50, useNativeDriver: true }),
     ]).start();
 
     nextTrack();
   };
 
   const handlePrevPress = () => {
-    Animated.parallel([
-      Animated.sequence([
-        Animated.spring(prevScale, { toValue: 0.86, friction: 3, tension: 45, useNativeDriver: true }),
-        Animated.spring(prevScale, { toValue: 1, friction: 3, tension: 45, useNativeDriver: true }),
-      ]),
-      Animated.sequence([
-        Animated.spring(playScale, { toValue: 1.08, friction: 4, tension: 35, useNativeDriver: true }),
-        Animated.spring(playScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
-      ]),
-      Animated.sequence([
-        Animated.spring(nextScale, { toValue: 1.08, friction: 4, tension: 35, useNativeDriver: true }),
-        Animated.spring(nextScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
-      ]),
+    Animated.sequence([
+      Animated.spring(prevScale, { toValue: 0.9, friction: 5, tension: 50, useNativeDriver: true }),
+      Animated.spring(prevScale, { toValue: 1, friction: 5, tension: 50, useNativeDriver: true }),
     ]).start();
 
     prevTrack();
@@ -300,41 +255,35 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
 
   const outerAnimatedStyles = {
     opacity: playerExpansion.interpolate({
-      inputRange: [0, 0.08, 1],
+      inputRange: [0, 0.35, 1],
       outputRange: [0, 1, 1],
     }),
     transform: [
       {
         translateY: playerExpansion.interpolate({
           inputRange: [0, 1],
-          outputRange: [INITIAL_TRANSLATE_Y, 0],
+          outputRange: [SCREEN_HEIGHT, 0],
         })
       },
       {
-        scaleX: playerExpansion.interpolate({
+        scale: playerExpansion.interpolate({
           inputRange: [0, 1],
-          outputRange: [INITIAL_SCALE_X, 1],
-        })
-      },
-      {
-        scaleY: playerExpansion.interpolate({
-          inputRange: [0, 1],
-          outputRange: [INITIAL_SCALE_Y, 1],
+          outputRange: [0.95, 1],
         })
       }
     ],
   };
 
-  const innerAnimatedStyles = {
-    borderRadius: borderAnim,
+  const innerStyles = {
+    borderRadius: 28,
   };
 
   return (
-    <Animated.View 
+    <Animated.View
       pointerEvents={visible ? 'auto' : 'none'}
       style={[
-        styles.absoluteOverlay, 
-        { 
+        styles.absoluteOverlay,
+        {
           backgroundColor: theme.playerBackground || '#2C2120',
           top: 0,
           left: 0,
@@ -345,247 +294,247 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
         outerAnimatedStyles
       ]}
     >
-      <Animated.View style={[{ flex: 1, overflow: 'hidden' }, innerAnimatedStyles]}>
+      <Animated.View style={[{ flex: 1, overflow: 'hidden' }, innerStyles]}>
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.playerBackground || '#2C2120' }]}>
-        
-        {/* TOP CONTROLS */}
-        <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
-          <Pressable onPress={onClose} style={[styles.headerBtnSquare, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-            <Icons.ChevronDown size={24} color="#FFFFFF" />
-          </Pressable>
-          <View style={styles.headerTitleContainer}>
-            <ThemedText style={styles.headerTitle}>Now Playing</ThemedText>
-            {sleepTimeRemaining !== null && (
-              <ThemedText type="small" style={styles.sleepTimerCounter}>
-                Sleep: {formatTime(sleepTimeRemaining)}
-              </ThemedText>
-            )}
+
+          {/* TOP CONTROLS */}
+          <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
+            <Pressable onPress={onClose} style={[styles.headerBtnSquare, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+              <Icons.ChevronDown size={24} color="#FFFFFF" />
+            </Pressable>
+            <View style={styles.headerTitleContainer}>
+              <ThemedText style={styles.headerTitle}>Now Playing</ThemedText>
+              {sleepTimeRemaining !== null && (
+                <ThemedText type="small" style={styles.sleepTimerCounter}>
+                  Sleep: {formatTime(sleepTimeRemaining)}
+                </ThemedText>
+              )}
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: Spacing.two }}>
+              <Pressable
+                onPress={() => setShowSleepTimer(true)}
+                style={[
+                  styles.headerBtnSquare,
+                  { backgroundColor: 'rgba(255,255,255,0.06)' },
+                  sleepTimeRemaining !== null && { borderColor: theme.primary, borderWidth: 1 }
+                ]}
+              >
+                <Icons.SleepTimer size={20} color={sleepTimeRemaining !== null ? theme.primary : '#FFFFFF'} />
+              </Pressable>
+
+              <Pressable onPress={() => setShowQueue(true)} style={[styles.headerBtnSquare, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+                <Icons.Queue size={20} color="#FFFFFF" />
+              </Pressable>
+            </View>
           </View>
-          
-          <View style={{ flexDirection: 'row', gap: Spacing.two }}>
-            <Pressable 
-              onPress={() => setShowSleepTimer(true)} 
-              style={[
-                styles.headerBtnSquare, 
-                { backgroundColor: 'rgba(255,255,255,0.06)' },
-                sleepTimeRemaining !== null && { borderColor: theme.primary, borderWidth: 1 }
-              ]}
+
+          {/* CENTER VIEWPORT: GORGEOUS CENTERED ALBUM ART */}
+          <View style={styles.centerArtContainer}>
+            <View style={[styles.artWrapper, { shadowColor: theme.primary }]}>
+              <Image
+                source={{ uri: currentTrack.coverUrl }}
+                style={styles.albumArt}
+                transition={300}
+              />
+            </View>
+          </View>
+
+          {/* METADATA BLOCK */}
+          <View style={styles.metaBlock}>
+            <ThemedText style={styles.trackTitle} numberOfLines={1}>{currentTrack.title}</ThemedText>
+            <ThemedText style={styles.artistName} numberOfLines={1}>{currentTrack.artist}</ThemedText>
+          </View>
+
+          {/* PREMIUM SVG WAVY SEEK BAR */}
+          <View style={styles.progressContainer}>
+            <Pressable
+              onPress={handleProgressBarTouch}
+              onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
+              style={styles.progressBarTrackWrapper}
             >
-              <Icons.SleepTimer size={20} color={sleepTimeRemaining !== null ? theme.primary : '#FFFFFF'} />
+              {progressBarWidth > 0 && (
+                <Svg height="20" width={progressBarWidth} style={styles.waveSvg}>
+                  {/* Active Played Wavy Path */}
+                  <Path
+                    d={generateWavePath(currentThumbX, wavePhase)}
+                    fill="none"
+                    stroke={theme.primary}
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                  />
+                  {/* Inactive Remaining Flat Line */}
+                  <Line
+                    x1={currentThumbX}
+                    y1="10"
+                    x2={progressBarWidth}
+                    y2="10"
+                    stroke="rgba(255,255,255,0.12)"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                  />
+                </Svg>
+              )}
+
+              {/* Slider Thumb Circular Dot */}
+              <View
+                style={[
+                  styles.progressBarThumb,
+                  {
+                    backgroundColor: '#FFFFFF',
+                    left: currentThumbX,
+                    transform: [{ translateX: -7 }, { translateY: -7 }]
+                  }
+                ]}
+              />
             </Pressable>
-            
-            <Pressable onPress={() => setShowQueue(true)} style={[styles.headerBtnSquare, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-              <Icons.Queue size={20} color="#FFFFFF" />
+
+            <View style={styles.timeLabelsRow}>
+              <ThemedText type="small" style={styles.timeLabel}>{formatTime(visualPosition)}</ThemedText>
+              <ThemedText type="small" style={styles.timeLabel}>{formatTime(duration)}</ThemedText>
+            </View>
+          </View>
+
+          {/* BOTTOM CONTROLS ROW */}
+          <View style={styles.controlsRow}>
+            <Animated.View style={{ transform: [{ scale: prevScale }] }}>
+              <Pressable onPress={handlePrevPress} style={[styles.controlBtnCircular, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+                <Icons.SkipBack size={24} color="#FFFFFF" />
+              </Pressable>
+            </Animated.View>
+
+            <Animated.View style={{ transform: [{ scale: playScale }] }}>
+              <Pressable
+                onPress={handlePlayPress}
+                disabled={isBuffering}
+                style={({ pressed }) => [
+                  styles.playPauseBtnSquare,
+                  { backgroundColor: theme.accentContainer || '#FFB4A9' },
+                  pressed && { transform: [{ scale: 0.95 }] }
+                ]}
+              >
+                {isBuffering ? (
+                  <ActivityIndicator size="large" color={theme.primary} />
+                ) : isPlaying ? (
+                  <Icons.Pause size={32} color={theme.onPrimary || '#680005'} />
+                ) : (
+                  <Icons.Play size={32} style={{ marginLeft: 3 }} color={theme.onPrimary || '#680005'} />
+                )}
+              </Pressable>
+            </Animated.View>
+
+            <Animated.View style={{ transform: [{ scale: nextScale }] }}>
+              <Pressable onPress={handleNextPress} style={[styles.controlBtnCircular, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+                <Icons.SkipForward size={24} color="#FFFFFF" />
+              </Pressable>
+            </Animated.View>
+          </View>
+
+          {/* CAPSULE UTILITY FOOTER */}
+          <View style={[styles.footerCapsule, { backgroundColor: 'rgba(255,255,255,0.04)' }]}>
+            <Pressable onPress={toggleShuffle} style={styles.footerIconBtn}>
+              <Icons.Shuffle size={22} color={isShuffle ? theme.primary : 'rgba(255,255,255,0.5)'} />
             </Pressable>
-          </View>
-        </View>
 
-        {/* CENTER VIEWPORT: GORGEOUS CENTERED ALBUM ART */}
-        <View style={styles.centerArtContainer}>
-          <View style={[styles.artWrapper, { shadowColor: theme.primary }]}>
-            <Image 
-              source={{ uri: currentTrack.coverUrl }} 
-              style={styles.albumArt} 
-              transition={300}
-            />
-          </View>
-        </View>
-
-        {/* METADATA BLOCK */}
-        <View style={styles.metaBlock}>
-          <ThemedText style={styles.trackTitle} numberOfLines={1}>{currentTrack.title}</ThemedText>
-          <ThemedText style={styles.artistName} numberOfLines={1}>{currentTrack.artist}</ThemedText>
-        </View>
-
-        {/* PREMIUM SVG WAVY SEEK BAR */}
-        <View style={styles.progressContainer}>
-          <Pressable 
-            onPress={handleProgressBarTouch}
-            onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
-            style={styles.progressBarTrackWrapper}
-          >
-            {progressBarWidth > 0 && (
-              <Svg height="20" width={progressBarWidth} style={styles.waveSvg}>
-                {/* Active Played Wavy Path */}
-                <Path
-                  d={generateWavePath(currentThumbX, wavePhase)}
-                  fill="none"
-                  stroke={theme.primary}
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                />
-                {/* Inactive Remaining Flat Line */}
-                <Line
-                  x1={currentThumbX}
-                  y1="10"
-                  x2={progressBarWidth}
-                  y2="10"
-                  stroke="rgba(255,255,255,0.12)"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                />
-              </Svg>
-            )}
-            
-            {/* Slider Thumb Circular Dot */}
-            <View 
-              style={[
-                styles.progressBarThumb, 
-                { 
-                  backgroundColor: '#FFFFFF',
-                  left: currentThumbX,
-                  transform: [{ translateX: -7 }, { translateY: -7 }]
-                }
-              ]} 
-            />
-          </Pressable>
-          
-          <View style={styles.timeLabelsRow}>
-            <ThemedText type="small" style={styles.timeLabel}>{formatTime(visualPosition)}</ThemedText>
-            <ThemedText type="small" style={styles.timeLabel}>{formatTime(duration)}</ThemedText>
-          </View>
-        </View>
-
-        {/* BOTTOM CONTROLS ROW */}
-        <View style={styles.controlsRow}>
-          <Animated.View style={{ transform: [{ scale: prevScale }] }}>
-            <Pressable onPress={handlePrevPress} style={[styles.controlBtnCircular, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-              <Icons.SkipBack size={24} color="#FFFFFF" />
+            <Pressable onPress={toggleRepeat} style={styles.footerIconBtn}>
+              <Icons.Repeat size={22} color={isRepeat ? theme.primary : 'rgba(255,255,255,0.5)'} />
             </Pressable>
-          </Animated.View>
 
-          <Animated.View style={{ transform: [{ scale: playScale }] }}>
-            <Pressable 
-              onPress={handlePlayPress} 
-              disabled={isBuffering}
-              style={({ pressed }) => [
-                styles.playPauseBtnSquare, 
-                { backgroundColor: theme.accentContainer || '#FFB4A9' },
-                pressed && { transform: [{ scale: 0.95 }] }
-              ]}
-            >
-              {isBuffering ? (
-                <ActivityIndicator size="large" color={theme.primary} />
-              ) : isPlaying ? (
-                <Icons.Pause size={32} color={theme.onPrimary || '#680005'} />
+            <Pressable onPress={() => toggleLike(currentTrack.id)} style={styles.footerIconBtn}>
+              {isLiked ? (
+                <Icons.Heart size={22} color="#E03B3B" fill="#E03B3B" />
               ) : (
-                <Icons.Play size={32} style={{ marginLeft: 3 }} color={theme.onPrimary || '#680005'} />
+                <Icons.Heart size={22} color="rgba(255,255,255,0.5)" />
               )}
             </Pressable>
-          </Animated.View>
+          </View>
 
-          <Animated.View style={{ transform: [{ scale: nextScale }] }}>
-            <Pressable onPress={handleNextPress} style={[styles.controlBtnCircular, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-              <Icons.SkipForward size={24} color="#FFFFFF" />
-            </Pressable>
-          </Animated.View>
-        </View>
+          {/* SIDE DRAWER: PLAYBACK QUEUE MODAL */}
+          {showQueue && (
+            <Modal visible={true} transparent={true} animationType="fade" onRequestClose={() => setShowQueue(false)}>
+              <Pressable onPress={() => setShowQueue(false)} style={styles.modalOverlay}>
+                <View style={[styles.queueSheet, { backgroundColor: theme.background }]}>
+                  <View style={styles.sheetHeader}>
+                    <ThemedText style={styles.sheetTitle}>Playback Queue</ThemedText>
+                    <Pressable onPress={() => setShowQueue(false)}>
+                      <ThemedText type="small" style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
+                    </Pressable>
+                  </View>
+                  <ScrollView style={{ flex: 1 }}>
+                    {queue.map((track, i) => {
+                      const isCurrent = track.id === currentTrack.id;
+                      return (
+                        <Pressable
+                          key={track.id}
+                          onPress={() => {
+                            playTrack(track);
+                            setShowQueue(false);
+                          }}
+                          style={[
+                            styles.queueItem,
+                            isCurrent && { backgroundColor: theme.backgroundSelected }
+                          ]}
+                        >
+                          <Image source={{ uri: track.coverUrl }} style={styles.queueCoverArt} />
+                          <View style={{ flex: 1 }}>
+                            <ThemedText style={{ fontWeight: isCurrent ? 'bold' : 'normal' }}>
+                              {track.title}
+                            </ThemedText>
+                            <ThemedText type="small" themeColor="textSecondary">
+                              {track.artist}
+                            </ThemedText>
+                          </View>
+                          {isCurrent && <Icons.Checked size={18} color={theme.primary} />}
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              </Pressable>
+            </Modal>
+          )}
 
-        {/* CAPSULE UTILITY FOOTER */}
-        <View style={[styles.footerCapsule, { backgroundColor: 'rgba(255,255,255,0.04)' }]}>
-          <Pressable onPress={toggleShuffle} style={styles.footerIconBtn}>
-            <Icons.Shuffle size={22} color={isShuffle ? theme.primary : 'rgba(255,255,255,0.5)'} />
-          </Pressable>
-          
-          <Pressable onPress={toggleRepeat} style={styles.footerIconBtn}>
-            <Icons.Repeat size={22} color={isRepeat ? theme.primary : 'rgba(255,255,255,0.5)'} />
-          </Pressable>
-          
-          <Pressable onPress={() => toggleLike(currentTrack.id)} style={styles.footerIconBtn}>
-            {isLiked ? (
-              <Icons.Heart size={22} color="#E03B3B" fill="#E03B3B" />
-            ) : (
-              <Icons.Heart size={22} color="rgba(255,255,255,0.5)" />
-            )}
-          </Pressable>
-        </View>
+          {/* DIALOG SHEET: SLEEP TIMER */}
+          {showSleepTimer && (
+            <Modal visible={true} transparent={true} animationType="fade" onRequestClose={() => setShowSleepTimer(false)}>
+              <Pressable onPress={() => setShowSleepTimer(false)} style={styles.modalOverlay}>
+                <View style={[styles.sleepDialog, { backgroundColor: theme.backgroundElement }]}>
+                  <ThemedText style={styles.dialogTitle}>Set Sleep Timer</ThemedText>
 
-        {/* SIDE DRAWER: PLAYBACK QUEUE MODAL */}
-        {showQueue && (
-          <Modal visible={true} transparent={true} animationType="fade" onRequestClose={() => setShowQueue(false)}>
-            <Pressable onPress={() => setShowQueue(false)} style={styles.modalOverlay}>
-              <View style={[styles.queueSheet, { backgroundColor: theme.background }]}>
-                <View style={styles.sheetHeader}>
-                  <ThemedText style={styles.sheetTitle}>Playback Queue</ThemedText>
-                  <Pressable onPress={() => setShowQueue(false)}>
-                    <ThemedText type="small" style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
+                  <Pressable onPress={() => startSleepTimer(15)} style={styles.dialogOption}>
+                    <ThemedText>15 Minutes</ThemedText>
+                  </Pressable>
+                  <Pressable onPress={() => startSleepTimer(30)} style={styles.dialogOption}>
+                    <ThemedText>30 Minutes</ThemedText>
+                  </Pressable>
+                  <Pressable onPress={() => startSleepTimer(45)} style={styles.dialogOption}>
+                    <ThemedText>45 Minutes</ThemedText>
+                  </Pressable>
+                  <Pressable onPress={() => startSleepTimer(60)} style={styles.dialogOption}>
+                    <ThemedText>1 Hour</ThemedText>
+                  </Pressable>
+
+                  {sleepTimeRemaining !== null && (
+                    <Pressable
+                      onPress={() => {
+                        setSleepTimeRemaining(null);
+                        setShowSleepTimer(false);
+                      }}
+                      style={[styles.dialogOption, styles.dialogCancelOption]}
+                    >
+                      <ThemedText style={{ color: '#E03B3B', fontWeight: 'bold' }}>Cancel Active Timer</ThemedText>
+                    </Pressable>
+                  )}
+
+                  <Pressable onPress={() => setShowSleepTimer(false)} style={styles.dialogCloseOption}>
+                    <ThemedText type="small" themeColor="textSecondary">Close</ThemedText>
                   </Pressable>
                 </View>
-                <ScrollView style={{ flex: 1 }}>
-                  {queue.map((track, i) => {
-                    const isCurrent = track.id === currentTrack.id;
-                    return (
-                      <Pressable
-                        key={track.id}
-                        onPress={() => {
-                          playTrack(track);
-                          setShowQueue(false);
-                        }}
-                        style={[
-                          styles.queueItem,
-                          isCurrent && { backgroundColor: theme.backgroundSelected }
-                        ]}
-                      >
-                        <Image source={{ uri: track.coverUrl }} style={styles.queueCoverArt} />
-                        <View style={{ flex: 1 }}>
-                          <ThemedText style={{ fontWeight: isCurrent ? 'bold' : 'normal' }}>
-                            {track.title}
-                          </ThemedText>
-                          <ThemedText type="small" themeColor="textSecondary">
-                            {track.artist}
-                          </ThemedText>
-                        </View>
-                        {isCurrent && <Icons.Checked size={18} color={theme.primary} />}
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            </Pressable>
-          </Modal>
-        )}
+              </Pressable>
+            </Modal>
+          )}
 
-        {/* DIALOG SHEET: SLEEP TIMER */}
-        {showSleepTimer && (
-          <Modal visible={true} transparent={true} animationType="fade" onRequestClose={() => setShowSleepTimer(false)}>
-            <Pressable onPress={() => setShowSleepTimer(false)} style={styles.modalOverlay}>
-              <View style={[styles.sleepDialog, { backgroundColor: theme.backgroundElement }]}>
-                <ThemedText style={styles.dialogTitle}>Set Sleep Timer</ThemedText>
-                
-                <Pressable onPress={() => startSleepTimer(15)} style={styles.dialogOption}>
-                  <ThemedText>15 Minutes</ThemedText>
-                </Pressable>
-                <Pressable onPress={() => startSleepTimer(30)} style={styles.dialogOption}>
-                  <ThemedText>30 Minutes</ThemedText>
-                </Pressable>
-                <Pressable onPress={() => startSleepTimer(45)} style={styles.dialogOption}>
-                  <ThemedText>45 Minutes</ThemedText>
-                </Pressable>
-                <Pressable onPress={() => startSleepTimer(60)} style={styles.dialogOption}>
-                  <ThemedText>1 Hour</ThemedText>
-                </Pressable>
-                
-                {sleepTimeRemaining !== null && (
-                  <Pressable 
-                    onPress={() => {
-                      setSleepTimeRemaining(null);
-                      setShowSleepTimer(false);
-                    }} 
-                    style={[styles.dialogOption, styles.dialogCancelOption]}
-                  >
-                    <ThemedText style={{ color: '#E03B3B', fontWeight: 'bold' }}>Cancel Active Timer</ThemedText>
-                  </Pressable>
-                )}
-
-                <Pressable onPress={() => setShowSleepTimer(false)} style={styles.dialogCloseOption}>
-                  <ThemedText type="small" themeColor="textSecondary">Close</ThemedText>
-                </Pressable>
-              </View>
-            </Pressable>
-          </Modal>
-        )}
-
-      </SafeAreaView>
+        </SafeAreaView>
       </Animated.View>
     </Animated.View>
   );
