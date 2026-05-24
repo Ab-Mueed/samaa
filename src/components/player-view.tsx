@@ -4,13 +4,15 @@ import {
   StyleSheet, 
   Pressable, 
   ScrollView, 
-  Modal, 
   SafeAreaView, 
   Platform,
   Dimensions,
   Share,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Animated,
+  BackHandler,
+  Modal
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -19,7 +21,7 @@ import { usePlayer, Track } from '@/context/player-context';
 import { ThemedText } from './themed-text';
 import { Icons } from './icons';
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing } from '@/constants/theme';
+import { Spacing, BottomTabInset } from '@/constants/theme';
 
 interface PlayerViewProps {
   visible: boolean;
@@ -69,6 +71,16 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const lastTimeRef = useRef<number>(Date.now());
   const animationRef = useRef<number | null>(null);
 
+  // Custom Squash & Pull Transitions
+  const playerExpansion = useRef(new Animated.Value(0)).current;
+  const borderAnim = useRef(new Animated.Value(36)).current;
+  const [shouldRender, setShouldRender] = useState(visible);
+
+  // Sympathetic scale springs
+  const playScale = useRef(new Animated.Value(1)).current;
+  const prevScale = useRef(new Animated.Value(1)).current;
+  const nextScale = useRef(new Animated.Value(1)).current;
+
   // Sync visual position whenever true audio player position updates
   useEffect(() => {
     setVisualPosition(position);
@@ -106,7 +118,57 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     };
   }, [isPlaying, duration]);
 
-  // Track the sleep timer ticking down
+  // Handle Android physical back gesture
+  useEffect(() => {
+    if (visible) {
+      const onBackPress = () => {
+        onClose();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }
+  }, [visible]);
+
+  // Trigger custom open/close squash animations
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true);
+      Animated.parallel([
+        Animated.spring(playerExpansion, {
+          toValue: 1,
+          friction: 8,
+          tension: 35,
+          useNativeDriver: true,
+        }),
+        Animated.spring(borderAnim, {
+          toValue: 0,
+          friction: 8,
+          tension: 35,
+          useNativeDriver: false, // borderRadius requires false
+        })
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(playerExpansion, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(borderAnim, {
+          toValue: 36,
+          duration: 250,
+          useNativeDriver: false,
+        })
+      ]).start(({ finished }) => {
+        if (finished) {
+          setShouldRender(false);
+        }
+      });
+    }
+  }, [visible]);
+
+  // Sleep timer ticker
   useEffect(() => {
     if (sleepTimeRemaining !== null) {
       if (sleepTimeRemaining <= 0) {
@@ -124,7 +186,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     };
   }, [sleepTimeRemaining, isPlaying]);
 
-  if (!currentTrack) return null;
+  if (!currentTrack || (!shouldRender && !visible)) return null;
 
   const isLiked = likes.includes(currentTrack.id);
 
@@ -168,9 +230,123 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const playedPercent = duration > 0 ? Math.max(0, Math.min(visualPosition / duration, 1)) : 0;
   const currentThumbX = playedPercent * progressBarWidth;
 
+  // Sympathetic physics bounce triggers
+  const handlePlayPress = () => {
+    Animated.parallel([
+      Animated.sequence([
+        Animated.spring(playScale, { toValue: 0.88, friction: 3, tension: 40, useNativeDriver: true }),
+        Animated.spring(playScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.spring(prevScale, { toValue: 1.1, friction: 4, tension: 35, useNativeDriver: true }),
+        Animated.spring(prevScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.spring(nextScale, { toValue: 1.1, friction: 4, tension: 35, useNativeDriver: true }),
+        Animated.spring(nextScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    togglePlay();
+  };
+
+  const handleNextPress = () => {
+    Animated.parallel([
+      Animated.sequence([
+        Animated.spring(nextScale, { toValue: 0.86, friction: 3, tension: 45, useNativeDriver: true }),
+        Animated.spring(nextScale, { toValue: 1, friction: 3, tension: 45, useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.spring(playScale, { toValue: 1.08, friction: 4, tension: 35, useNativeDriver: true }),
+        Animated.spring(playScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.spring(prevScale, { toValue: 1.08, friction: 4, tension: 35, useNativeDriver: true }),
+        Animated.spring(prevScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    nextTrack();
+  };
+
+  const handlePrevPress = () => {
+    Animated.parallel([
+      Animated.sequence([
+        Animated.spring(prevScale, { toValue: 0.86, friction: 3, tension: 45, useNativeDriver: true }),
+        Animated.spring(prevScale, { toValue: 1, friction: 3, tension: 45, useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.spring(playScale, { toValue: 1.08, friction: 4, tension: 35, useNativeDriver: true }),
+        Animated.spring(playScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.spring(nextScale, { toValue: 1.08, friction: 4, tension: 35, useNativeDriver: true }),
+        Animated.spring(nextScale, { toValue: 1, friction: 4, tension: 35, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    prevTrack();
+  };
+
+  const MIN_PLAYER_HEIGHT = 72;
+  const MIN_PLAYER_WIDTH = SCREEN_WIDTH - 32;
+  const MIN_PLAYER_BOTTOM = Platform.OS === 'web' ? 84 : BottomTabInset + 8;
+  const MIN_PLAYER_CENTER_Y = SCREEN_HEIGHT - MIN_PLAYER_BOTTOM - (MIN_PLAYER_HEIGHT / 2);
+  const FULL_PLAYER_CENTER_Y = SCREEN_HEIGHT / 2;
+  const INITIAL_TRANSLATE_Y = MIN_PLAYER_CENTER_Y - FULL_PLAYER_CENTER_Y;
+
+  const INITIAL_SCALE_X = MIN_PLAYER_WIDTH / SCREEN_WIDTH;
+  const INITIAL_SCALE_Y = MIN_PLAYER_HEIGHT / SCREEN_HEIGHT;
+
+  const outerAnimatedStyles = {
+    opacity: playerExpansion.interpolate({
+      inputRange: [0, 0.08, 1],
+      outputRange: [0, 1, 1],
+    }),
+    transform: [
+      {
+        translateY: playerExpansion.interpolate({
+          inputRange: [0, 1],
+          outputRange: [INITIAL_TRANSLATE_Y, 0],
+        })
+      },
+      {
+        scaleX: playerExpansion.interpolate({
+          inputRange: [0, 1],
+          outputRange: [INITIAL_SCALE_X, 1],
+        })
+      },
+      {
+        scaleY: playerExpansion.interpolate({
+          inputRange: [0, 1],
+          outputRange: [INITIAL_SCALE_Y, 1],
+        })
+      }
+    ],
+  };
+
+  const innerAnimatedStyles = {
+    borderRadius: borderAnim,
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.playerBackground || '#2C2120' }]}>
+    <Animated.View 
+      pointerEvents={visible ? 'auto' : 'none'}
+      style={[
+        styles.absoluteOverlay, 
+        { 
+          backgroundColor: theme.playerBackground || '#2C2120',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+        },
+        outerAnimatedStyles
+      ]}
+    >
+      <Animated.View style={[{ flex: 1, overflow: 'hidden' }, innerAnimatedStyles]}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.playerBackground || '#2C2120' }]}>
         
         {/* TOP CONTROLS */}
         <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
@@ -272,31 +448,37 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
 
         {/* BOTTOM CONTROLS ROW */}
         <View style={styles.controlsRow}>
-          <Pressable onPress={prevTrack} style={[styles.controlBtnCircular, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-            <Icons.SkipBack size={24} color="#FFFFFF" />
-          </Pressable>
+          <Animated.View style={{ transform: [{ scale: prevScale }] }}>
+            <Pressable onPress={handlePrevPress} style={[styles.controlBtnCircular, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+              <Icons.SkipBack size={24} color="#FFFFFF" />
+            </Pressable>
+          </Animated.View>
 
-          <Pressable 
-            onPress={togglePlay} 
-            disabled={isBuffering}
-            style={({ pressed }) => [
-              styles.playPauseBtnSquare, 
-              { backgroundColor: theme.accentContainer || '#FFB4A9' },
-              pressed && { transform: [{ scale: 0.92 }] }
-            ]}
-          >
-            {isBuffering ? (
-              <ActivityIndicator size="large" color={theme.primary} />
-            ) : isPlaying ? (
-              <Icons.Pause size={32} color={theme.onPrimary || '#680005'} />
-            ) : (
-              <Icons.Play size={32} style={{ marginLeft: 3 }} color={theme.onPrimary || '#680005'} />
-            )}
-          </Pressable>
+          <Animated.View style={{ transform: [{ scale: playScale }] }}>
+            <Pressable 
+              onPress={handlePlayPress} 
+              disabled={isBuffering}
+              style={({ pressed }) => [
+                styles.playPauseBtnSquare, 
+                { backgroundColor: theme.accentContainer || '#FFB4A9' },
+                pressed && { transform: [{ scale: 0.95 }] }
+              ]}
+            >
+              {isBuffering ? (
+                <ActivityIndicator size="large" color={theme.primary} />
+              ) : isPlaying ? (
+                <Icons.Pause size={32} color={theme.onPrimary || '#680005'} />
+              ) : (
+                <Icons.Play size={32} style={{ marginLeft: 3 }} color={theme.onPrimary || '#680005'} />
+              )}
+            </Pressable>
+          </Animated.View>
 
-          <Pressable onPress={nextTrack} style={[styles.controlBtnCircular, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-            <Icons.SkipForward size={24} color="#FFFFFF" />
-          </Pressable>
+          <Animated.View style={{ transform: [{ scale: nextScale }] }}>
+            <Pressable onPress={handleNextPress} style={[styles.controlBtnCircular, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+              <Icons.SkipForward size={24} color="#FFFFFF" />
+            </Pressable>
+          </Animated.View>
         </View>
 
         {/* CAPSULE UTILITY FOOTER */}
@@ -404,14 +586,27 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
         )}
 
       </SafeAreaView>
-    </Modal>
+      </Animated.View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  absoluteOverlay: {
+    position: 'absolute',
+    elevation: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    overflow: 'hidden',
+  },
   safeArea: {
     flex: 1,
     justifyContent: 'space-between',
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',

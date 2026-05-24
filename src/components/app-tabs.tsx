@@ -59,6 +59,12 @@ export default function AppTabs() {
       
       {/* Hide auxiliary/legacy routes from bottom tabs listing */}
       <Tabs.Screen
+        name="settings"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="songs"
         options={{
           href: null,

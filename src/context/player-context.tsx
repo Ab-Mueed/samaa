@@ -46,6 +46,8 @@ export interface PlayerContextProps {
   clearHistory: () => void;
   themeAccent: ThemeAccent;
   setThemeAccent: (accent: ThemeAccent) => void;
+  userName: string;
+  setUserName: (name: string) => void;
 }
 
 export const MOCK_TRACKS: Track[] = [
@@ -56,7 +58,7 @@ export const MOCK_TRACKS: Track[] = [
     album: 'Al-Mu`allim',
     duration: 247,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&q=80',
+    coverUrl: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=500&q=80',
     lyrics: [
       { time: 0, text: "♪ (Vocal Intro)" },
       { time: 4, text: "Hasbi rabbi jallallah", translation: "Sufficient is my Lord, glorified is Allah" },
@@ -88,7 +90,7 @@ export const MOCK_TRACKS: Track[] = [
     album: 'Aseer Ahsan',
     duration: 236,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=500&q=80',
+    coverUrl: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=500&q=80',
     lyrics: [
       { time: 0, text: "♪ (Upbeat vocal harmony intro)" },
       { time: 6, text: "Li-ajli an nurdiya-hum, na`tazilu ma yurdina", translation: "To please them, we give up what pleases us" },
@@ -112,7 +114,7 @@ export const MOCK_TRACKS: Track[] = [
     album: 'Alafasy Vocal',
     duration: 312,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&q=80',
+    coverUrl: 'https://images.unsplash.com/photo-1609599006353-e629aaabfeae?w=500&q=80',
     lyrics: [
       { time: 0, text: "♪ (Beautiful solo vocals)" },
       { time: 5, text: "Rahman Ya Rahman, sa`idni Ya Rahman", translation: "O Most Beneficent, O Beneficent, help me O Beneficent" },
@@ -132,7 +134,7 @@ export const MOCK_TRACKS: Track[] = [
     album: 'Vocal Solitude',
     duration: 288,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&q=80',
+    coverUrl: 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?w=500&q=80',
     lyrics: [
       { time: 0, text: "♪ (Soft, deep vocal echoing)" },
       { time: 8, text: "Saraytu wa layli da-jin wa bah-mu", translation: "I walked while the night was dark and silent" },
@@ -150,7 +152,7 @@ export const MOCK_TRACKS: Track[] = [
     album: 'Forgive Me',
     duration: 295,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=500&q=80',
+    coverUrl: 'https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?w=500&q=80',
     lyrics: [
       { time: 0, text: "♪ (Maher Zain intro harmonies)" },
       { time: 6, text: "Mawlaya salli wa sallim da'iman abadan", translation: "O My Lord, send peace and blessings always and forever" },
@@ -168,7 +170,7 @@ export const MOCK_TRACKS: Track[] = [
     album: 'Qamarun Sidna',
     duration: 275,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80',
+    coverUrl: 'https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?w=500&q=80',
     lyrics: [
       { time: 0, text: "♪ (Bright chanting intro)" },
       { time: 5, text: "Qamarun, Qamarun, Qamarun Sidna Nabi, Qamarun", translation: "Beautiful like a moon, is our master the Prophet" },
@@ -195,7 +197,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [history, setHistory] = useState<string[]>([]);
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
   const [isRepeat, setIsRepeat] = useState<boolean>(false);
-  const [themeAccent, setThemeAccent] = useState<ThemeAccent>('rose');
+  const [themeAccent, setThemeAccent] = useState<ThemeAccent>('amoled');
+  const [userName, setUserName] = useState<string>('Nvy');
 
   // Audio Driver references
   const nativePlayerRef = useRef<any>(null);
@@ -528,6 +531,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         clearHistory,
         themeAccent,
         setThemeAccent,
+        userName,
+        setUserName,
       }}
     >
       {children}

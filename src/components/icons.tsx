@@ -29,6 +29,7 @@ import {
   Home,
   Check,
   ChevronDown,
+  Palette,
   LucideProps
 } from 'lucide-react-native';
 
@@ -67,4 +68,5 @@ export const Icons = {
   Playlists: (props: IconProps) => <FolderHeart {...props} />,
   Home: (props: IconProps) => <Home {...props} />,
   ChevronDown: (props: IconProps) => <ChevronDown {...props} />,
+  Appearance: (props: IconProps) => <Palette {...props} />,
 };

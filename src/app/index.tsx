@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   ScrollView, 
@@ -11,6 +11,7 @@ import {
   Platform
 } from 'react-native';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { usePlayer, Track } from '@/context/player-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -32,14 +33,38 @@ const PRESET_THEMES: { id: ThemeAccent; name: string; color: string }[] = [
 ];
 
 export default function HomeScreen() {
-  const { tracks, playTrack, history, likes, clearHistory, themeAccent, setThemeAccent } = usePlayer();
+  const { tracks, playTrack, history, likes, clearHistory, themeAccent, setThemeAccent, userName } = usePlayer();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [hours, setHours] = useState('');
+  const [minutes, setMinutes] = useState('');
+  const [ampm, setAmpm] = useState('');
+
+  // Ticking time effect for Material Clock Widget
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const currentHours = now.getHours();
+      const currentMinutes = now.getMinutes();
+      
+      const displayHours = currentHours % 12 || 12;
+      const displayMinutes = currentMinutes < 10 ? `0${currentMinutes}` : `${currentMinutes}`;
+      
+      setHours(displayHours.toString());
+      setMinutes(displayMinutes.toString());
+      setAmpm(currentHours >= 12 ? 'PM' : 'AM');
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Filter tracks based on search query
   const filteredTracks = tracks.filter(t => 
@@ -90,7 +115,17 @@ export default function HomeScreen() {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
-            <Pressable onPress={() => setShowThemeModal(true)} style={styles.searchSettingsBtn}>
+            <Pressable 
+              onPress={playRandomTrack} 
+              style={({ pressed }) => [
+                styles.searchSettingsBtn,
+                { marginRight: Spacing.two },
+                pressed && { opacity: 0.6 }
+              ]}
+            >
+              <Icons.Shuffle size={20} color={theme.textSecondary} />
+            </Pressable>
+            <Pressable onPress={() => router.push('/settings')} style={styles.searchSettingsBtn}>
               <Icons.Settings size={20} color={theme.textSecondary} />
             </Pressable>
           </View>
@@ -98,41 +133,31 @@ export default function HomeScreen() {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
-          {/* QUICK CIRCULAR ACTIONS - SCREENSHOT 2 */}
-          <View style={styles.quickActionsRow}>
-            <View style={styles.actionItemContainer}>
-              <Pressable 
-                onPress={() => setShowHistoryModal(true)} 
-                style={({ pressed }) => [
-                  styles.circleActionButton, 
-                  { backgroundColor: theme.backgroundElement },
-                  pressed && styles.pressed
-                ]}
-              >
-                <Icons.History size={26} color={theme.text} />
-              </Pressable>
-              <ThemedText type="smallBold" style={styles.actionLabel}>History</ThemedText>
-            </View>
+          {/* USER GREETING & PREMIUM METRIC CLOCK - SCREENSHOT ACCURATE */}
+          <View style={styles.greetingContainer}>
+            <ThemedText style={styles.hiText}>Hi {userName}</ThemedText>
+            
+            <View style={styles.clockRow}>
+              <View style={[styles.clockCard, { backgroundColor: theme.backgroundSelected || 'rgba(255,255,255,0.08)' }]}>
+                <ThemedText style={[styles.clockText, { color: theme.primary }]}>{hours}</ThemedText>
+              </View>
+              
+              <ThemedText style={[styles.clockColon, { color: theme.textSecondary }]}>:</ThemedText>
+              
+              <View style={[styles.clockCard, { backgroundColor: theme.backgroundElement }]}>
+                <ThemedText style={[styles.clockText, { color: theme.text }]}>{minutes}</ThemedText>
+              </View>
 
-            <View style={styles.actionItemContainer}>
-              <Pressable 
-                onPress={() => setShowStatsModal(true)} 
-                style={({ pressed }) => [
-                  styles.circleActionButton, 
-                  { backgroundColor: theme.backgroundElement },
-                  pressed && styles.pressed
-                ]}
-              >
-                <Icons.Stats size={26} color={theme.text} />
-              </Pressable>
-              <ThemedText type="smallBold" style={styles.actionLabel}>Stats</ThemedText>
+              <View style={styles.ampmContainer}>
+                <ThemedText style={[styles.ampmText, { color: theme.textSecondary }]}>{ampm}</ThemedText>
+              </View>
             </View>
           </View>
 
           {/* SEARCH RESULTS OR QUICK PICKS */}
           {searchQuery.length > 0 ? (
             <View style={styles.sectionContainer}>
-              <ThemedText style={[styles.sectionTitle, { color: '#0F4C81' }]}>Search Results</ThemedText>
+              <ThemedText style={[styles.sectionTitle, { color: theme.primary }]}>Search Results</ThemedText>
               {filteredTracks.length > 0 ? (
                 filteredTracks.map(track => (
                   <Pressable 
@@ -156,7 +181,7 @@ export default function HomeScreen() {
             <>
               {/* QUICK PICKS - SCREENSHOT 2 */}
               <View style={styles.sectionContainer}>
-                <ThemedText style={[styles.sectionTitle, { color: '#003366' }]}>Quick picks</ThemedText>
+                <ThemedText style={[styles.sectionTitle, { color: theme.primary }]}>Quick picks</ThemedText>
                 
                 {tracks.slice(0, 4).map(track => (
                   <Pressable 
@@ -181,7 +206,7 @@ export default function HomeScreen() {
               {/* KEEP LISTENING - SCREENSHOT 2 */}
               <View style={styles.sectionContainer}>
                 <View style={styles.sectionHeaderRow}>
-                  <ThemedText style={[styles.sectionTitle, { color: '#003366' }]}>Keep listening</ThemedText>
+                  <ThemedText style={[styles.sectionTitle, { color: theme.primary }]}>Keep listening</ThemedText>
                 </View>
 
                 <ScrollView 
@@ -215,18 +240,6 @@ export default function HomeScreen() {
           <View style={{ height: 160 }} />
 
         </ScrollView>
-
-        {/* BLUE TEAL FLOATING ACTION BUTTON (FAB) - SCREENSHOT 2 */}
-        <Pressable 
-          onPress={playRandomTrack}
-          style={({ pressed }) => [
-            styles.fab, 
-            { backgroundColor: '#0288D1' }, // Premium blue/teal MD3 FAB
-            pressed && styles.fabPressed
-          ]}
-        >
-          <Icons.Shuffle size={26} color="#FFFFFF" />
-        </Pressable>
 
         {/* HISTORY POPUP MODAL */}
         {showHistoryModal && (
@@ -403,6 +416,56 @@ const styles = StyleSheet.create({
   },
   searchSettingsBtn: {
     padding: Spacing.one,
+  },
+  greetingContainer: {
+    alignSelf: 'stretch',
+    paddingHorizontal: 0, // Left-aligned perfectly with list columns below!
+    marginTop: Spacing.two,
+    marginBottom: Spacing.four,
+  },
+  hiText: {
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    lineHeight: 34, // Prevents bottom cutoff on Android descenders!
+    paddingBottom: 2,
+  },
+  timeText: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  clockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.two,
+  },
+  clockCard: {
+    paddingHorizontal: 28, // Optimized horizontal padding to give numbers ample space!
+    paddingVertical: 16,  // Plump vertical spacing for capsule layout
+    borderRadius: 24,     // Rounded Material You capsule styling
+    minWidth: 110,        // Widen the card to 110px to completely prevent text cropping
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clockText: {
+    fontSize: 42,         // Bold, prominent and large numbers
+    fontWeight: '800',
+    lineHeight: 48,       // Explicit line height to prevent vertical cutting
+  },
+  clockColon: {
+    fontSize: 42,         // Prominent colon
+    fontWeight: '800',
+    lineHeight: 48,       // Match numbers' line height to prevent cutting
+    marginHorizontal: Spacing.two,
+  },
+  ampmContainer: {
+    marginLeft: Spacing.two,
+    justifyContent: 'center',
+  },
+  ampmText: {
+    fontSize: 14,
+    fontWeight: '800',
   },
   scrollContent: {
     paddingHorizontal: Spacing.three,

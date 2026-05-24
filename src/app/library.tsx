@@ -185,8 +185,6 @@ export default function LibraryScreen() {
             )}
           </View>
 
-
-
           {/* Padding for bottom player */}
           <View style={{ height: 160 }} />
         </ScrollView>
