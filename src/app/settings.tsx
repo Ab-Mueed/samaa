@@ -114,7 +114,10 @@ export default function SettingsScreen() {
                     return (
                       <Pressable
                         key={item.id}
-                        onPress={() => setThemeAccent(item.id)}
+                        onPress={() => {
+                          setThemeAccent(item.id);
+                          setShowThemeModal(false);
+                        }}
                         style={[
                           styles.themeOptionRow,
                           isSelected && { backgroundColor: 'rgba(255,255,255,0.08)' }
@@ -132,13 +135,6 @@ export default function SettingsScreen() {
                     );
                   })}
                 </ScrollView>
-
-                <Pressable 
-                  onPress={() => setShowThemeModal(false)} 
-                  style={[styles.dialogCloseBtn, { backgroundColor: theme.primary }]}
-                >
-                  <ThemedText style={{ color: theme.onPrimary || '#FFFFFF', fontWeight: 'bold' }}>Apply Theme</ThemedText>
-                </Pressable>
               </View>
             </Pressable>
           </Modal>

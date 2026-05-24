@@ -37,7 +37,8 @@ export default function HomeScreen() {
     activeReciter, 
     setActiveReciter, 
     quranReciters, 
-    isSwitchingMode 
+    isSwitchingMode,
+    addToQueue
   } = usePlayer();
   
   const theme = useTheme();
@@ -45,6 +46,7 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTrackOptions, setSelectedTrackOptions] = useState<Track | null>(null);
 
   // Rotating loop for the custom starburst spinner
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -260,7 +262,15 @@ export default function HomeScreen() {
                       <ThemedText style={styles.trackListName} numberOfLines={1}>{track.title}</ThemedText>
                       <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{track.artist}</ThemedText>
                     </View>
-                    <Icons.More size={20} color={theme.textSecondary} />
+                    <Pressable 
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setSelectedTrackOptions(track);
+                      }}
+                      style={{ padding: Spacing.two }}
+                    >
+                      <Icons.More size={20} color={theme.textSecondary} />
+                    </Pressable>
                   </Pressable>
                 ))}
               </View>
@@ -330,7 +340,68 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* PREMIUM TRACK OPTIONS MODAL (PLAY / ADD TO QUEUE) */}
+        {selectedTrackOptions && (
+          <Modal
+            visible={true}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setSelectedTrackOptions(null)}
+          >
+            <Pressable onPress={() => setSelectedTrackOptions(null)} style={styles.modalOverlay}>
+              <View style={[styles.optionsDialogCard, { backgroundColor: theme.backgroundElement }]}>
+                <View style={styles.optionsDialogHeader}>
+                  <Image source={{ uri: selectedTrackOptions.coverUrl }} style={styles.optionsCoverArt} />
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.optionsTrackTitle} numberOfLines={1}>{selectedTrackOptions.title}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{selectedTrackOptions.artist}</ThemedText>
+                  </View>
+                </View>
 
+                {/* Option 1: Play Now */}
+                <Pressable
+                  onPress={() => {
+                    playTrack(selectedTrackOptions);
+                    setSelectedTrackOptions(null);
+                  }}
+                  style={({ pressed }) => [
+                    styles.optionsRowBtn,
+                    pressed && { backgroundColor: 'rgba(255,255,255,0.06)' }
+                  ]}
+                >
+                  <View style={[styles.optionsIconCircle, { backgroundColor: theme.primary + '15' }]}>
+                    <Icons.Play size={20} color={theme.primary} />
+                  </View>
+                  <ThemedText style={styles.optionsRowText}>Play Now</ThemedText>
+                </Pressable>
+
+                {/* Option 2: Add to Queue */}
+                <Pressable
+                  onPress={() => {
+                    addToQueue(selectedTrackOptions);
+                    setSelectedTrackOptions(null);
+                  }}
+                  style={({ pressed }) => [
+                    styles.optionsRowBtn,
+                    pressed && { backgroundColor: 'rgba(255,255,255,0.06)' }
+                  ]}
+                >
+                  <View style={[styles.optionsIconCircle, { backgroundColor: theme.primary + '15' }]}>
+                    <Icons.Queue size={20} color={theme.primary} />
+                  </View>
+                  <ThemedText style={styles.optionsRowText}>Add to Queue</ThemedText>
+                </Pressable>
+
+                <Pressable 
+                  onPress={() => setSelectedTrackOptions(null)} 
+                  style={[styles.optionsCloseBtn, { backgroundColor: theme.primary + '15' }]}
+                >
+                  <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Cancel</ThemedText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Modal>
+        )}
 
       </SafeAreaView>
     </ThemedView>
@@ -540,5 +611,61 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+  },
+  optionsDialogCard: {
+    width: SCREEN_WIDTH * 0.88,
+    borderRadius: 28,
+    padding: Spacing.four,
+    elevation: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    alignSelf: 'center',
+  },
+  optionsDialogHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    marginBottom: Spacing.three,
+    paddingBottom: Spacing.two,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  optionsCoverArt: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+  },
+  optionsTrackTitle: {
+    fontWeight: '800',
+    fontSize: 16,
+    marginBottom: 2,
+  },
+  optionsRowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    borderRadius: 16,
+    marginVertical: Spacing.one / 2,
+    gap: Spacing.three,
+  },
+  optionsIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  optionsRowText: {
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  optionsCloseBtn: {
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+    borderRadius: 20,
+    marginTop: Spacing.two,
   },
 });

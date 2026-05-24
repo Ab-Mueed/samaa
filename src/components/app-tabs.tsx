@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { Icons } from './icons';
+import { View, StyleSheet } from 'react-native';
 
 export default function AppTabs() {
   const colors = useTheme();
@@ -12,7 +13,7 @@ export default function AppTabs() {
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.backgroundElement,
-          height: 64,
+          height: 68,
           paddingBottom: 8,
           paddingTop: 8,
           elevation: 8,
@@ -26,6 +27,7 @@ export default function AppTabs() {
         tabBarLabelStyle: {
           fontWeight: 'bold',
           fontSize: 12,
+          marginTop: 4,
         }
       }}
     >
@@ -33,8 +35,13 @@ export default function AppTabs() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => (
-            <Icons.Home color={color} size={24} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[
+              styles.tabIconWrapper,
+              focused && { backgroundColor: colors.primary + '25' }
+            ]}>
+              <Icons.Home color={color} size={24} />
+            </View>
           ),
         }}
       />
@@ -42,8 +49,13 @@ export default function AppTabs() {
         name="search"
         options={{
           title: 'Search',
-          tabBarIcon: ({ color }) => (
-            <Icons.Search color={color} size={24} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[
+              styles.tabIconWrapper,
+              focused && { backgroundColor: colors.primary + '25' }
+            ]}>
+              <Icons.Search color={color} size={24} />
+            </View>
           ),
         }}
       />
@@ -51,8 +63,13 @@ export default function AppTabs() {
         name="library"
         options={{
           title: 'Library',
-          tabBarIcon: ({ color }) => (
-            <Icons.Playlists color={color} size={24} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[
+              styles.tabIconWrapper,
+              focused && { backgroundColor: colors.primary + '25' }
+            ]}>
+              <Icons.Playlists color={color} size={24} />
+            </View>
           ),
         }}
       />
@@ -103,3 +120,13 @@ export default function AppTabs() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIconWrapper: {
+    width: 60,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});

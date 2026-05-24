@@ -26,8 +26,6 @@ export interface PlayerContextProps {
   currentTrack: Track | null;
   isPlaying: boolean;
   isBuffering: boolean;
-  position: number; // in seconds
-  duration: number; // in seconds
   queue: Track[];
   currentIndex: number;
   likes: string[];
@@ -38,11 +36,12 @@ export interface PlayerContextProps {
   togglePlay: () => void;
   nextTrack: () => void;
   prevTrack: () => void;
-  seekTo: (seconds: number) => void;
   toggleLike: (trackId: string) => void;
   toggleShuffle: () => void;
   toggleRepeat: () => void;
   addToQueue: (track: Track) => void;
+  removeFromQueue: (trackId: string) => void;
+  clearQueue: () => void;
   playAll: (trackList: Track[], startIndex?: number) => void;
   clearHistory: () => void;
   themeAccent: ThemeAccent;
@@ -59,6 +58,14 @@ export interface PlayerContextProps {
   isSwitchingMode: boolean;
   quranTracks: Track[];
 }
+
+export interface PlayerProgressContextProps {
+  position: number;
+  duration: number;
+  seekTo: (seconds: number) => void;
+}
+
+export const PlayerProgressContext = createContext<PlayerProgressContextProps | undefined>(undefined);
 
 export const MOCK_TRACKS: Track[] = [
   {
@@ -208,7 +215,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isBuffering, setIsBuffering] = useState<boolean>(false);
   const [position, setPosition] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
-  const [queue, setQueue] = useState<Track[]>(MOCK_TRACKS);
+  const [queue, setQueue] = useState<Track[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [likes, setLikes] = useState<string[]>([]);
   const [history, setHistory] = useState<string[]>([]);
@@ -340,8 +347,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (webTimerRef.current) clearInterval(webTimerRef.current);
     webTimerRef.current = setInterval(() => {
       if (webAudioRef.current && !webAudioRef.current.paused) {
-        const pos = Math.floor(webAudioRef.current.currentTime);
-        const dur = Math.floor(webAudioRef.current.duration) || 0;
+        const pos = webAudioRef.current.currentTime;
+        const dur = webAudioRef.current.duration || 0;
 
         if (activeModeRef.current === 'quran') {
           setQuranPosition(pos);
@@ -358,7 +365,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           handleTrackFinished();
         }
       }
-    }, 500);
+    }, 250);
   };
 
   // Keep track of native time progress
@@ -371,12 +378,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const currentBuffering = player.isBuffering || false;
 
         if (activeModeRef.current === 'quran') {
-          setQuranPosition(Math.floor(currentPos));
-          setQuranDuration(Math.floor(totalDuration));
+          setQuranPosition(currentPos);
+          setQuranDuration(totalDuration);
           setQuranIsBuffering(currentBuffering);
         } else {
-          setPosition(Math.floor(currentPos));
-          setDuration(Math.floor(totalDuration));
+          setPosition(currentPos);
+          setDuration(totalDuration);
           setIsBuffering(currentBuffering);
         }
 
@@ -385,7 +392,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           handleTrackFinished();
         }
       }
-    }, 500);
+    }, 250);
   };
 
   const handleTrackFinished = () => {
@@ -700,6 +707,42 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const removeFromQueue = (trackId: string) => {
+    const isQuran = activeMode === 'quran';
+    if (isQuran) {
+      setQuranQueue(prev => {
+        const nextQueue = prev.filter(t => t.id !== trackId);
+        // Adjust currentIndex if necessary
+        const nextIndex = nextQueue.findIndex(t => t.id === quranCurrentTrack?.id);
+        setQuranCurrentIndex(nextIndex);
+        return nextQueue;
+      });
+    } else {
+      setQueue(prev => {
+        const nextQueue = prev.filter(t => t.id !== trackId);
+        // Adjust currentIndex if necessary
+        const nextIndex = nextQueue.findIndex(t => t.id === currentTrack?.id);
+        setCurrentIndex(nextIndex);
+        return nextQueue;
+      });
+    }
+  };
+
+  const clearQueue = () => {
+    const isQuran = activeMode === 'quran';
+    if (isQuran) {
+      setQuranQueue([]);
+      setQuranCurrentIndex(-1);
+      setQuranCurrentTrack(null);
+      pauseAudio();
+    } else {
+      setQueue([]);
+      setCurrentIndex(-1);
+      setCurrentTrack(null);
+      pauseAudio();
+    }
+  };
+
   const playAll = (trackList: Track[], startIndex = 0) => {
     const isQuran = activeMode === 'quran';
     if (isQuran) {
@@ -733,48 +776,72 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const contextLikes = activeMode === 'nasheed' ? likes : quranLikes;
   const contextHistory = activeMode === 'nasheed' ? history : quranHistory;
 
-  return (
-    <PlayerContext.Provider
-      value={{
-        tracks: contextTracks,
-        currentTrack: contextCurrentTrack,
-        isPlaying: contextIsPlaying,
-        isBuffering: contextIsBuffering,
-        position: contextPosition,
-        duration: contextDuration,
-        queue: contextQueue,
-        currentIndex: contextCurrentIndex,
-        likes: contextLikes,
-        history: contextHistory,
-        isShuffle,
-        isRepeat,
-        playTrack,
-        togglePlay,
-        nextTrack,
-        prevTrack,
-        seekTo,
-        toggleLike,
-        toggleShuffle,
-        toggleRepeat,
-        addToQueue,
-        playAll,
-        clearHistory,
-        themeAccent,
-        setThemeAccent,
-        userName,
-        setUserName,
+  const contextValue = React.useMemo(() => ({
+    tracks: contextTracks,
+    currentTrack: contextCurrentTrack,
+    isPlaying: contextIsPlaying,
+    isBuffering: contextIsBuffering,
+    queue: contextQueue,
+    currentIndex: contextCurrentIndex,
+    likes: contextLikes,
+    history: contextHistory,
+    isShuffle,
+    isRepeat,
+    playTrack,
+    togglePlay,
+    nextTrack,
+    prevTrack,
+    toggleLike,
+    toggleShuffle,
+    toggleRepeat,
+    addToQueue,
+    removeFromQueue,
+    clearQueue,
+    playAll,
+    clearHistory,
+    themeAccent,
+    setThemeAccent,
+    userName,
+    setUserName,
 
-        // NEW DUAL MODE PROPERTIES
-        activeMode,
-        setActiveMode,
-        activeReciter,
-        setActiveReciter,
-        quranReciters: PRESET_RECITERS,
-        isSwitchingMode,
-        quranTracks,
-      }}
-    >
-      {children}
+    // NEW DUAL MODE PROPERTIES
+    activeMode,
+    setActiveMode,
+    activeReciter,
+    setActiveReciter,
+    quranReciters: PRESET_RECITERS,
+    isSwitchingMode,
+    quranTracks,
+  }), [
+    contextTracks,
+    contextCurrentTrack,
+    contextIsPlaying,
+    contextIsBuffering,
+    contextQueue,
+    contextCurrentIndex,
+    contextLikes,
+    contextHistory,
+    isShuffle,
+    isRepeat,
+    themeAccent,
+    userName,
+    activeMode,
+    activeReciter,
+    isSwitchingMode,
+    quranTracks,
+  ]);
+
+  const progressValue = React.useMemo(() => ({
+    position: contextPosition,
+    duration: contextDuration,
+    seekTo,
+  }), [contextPosition, contextDuration]);
+
+  return (
+    <PlayerContext.Provider value={contextValue}>
+      <PlayerProgressContext.Provider value={progressValue}>
+        {children}
+      </PlayerProgressContext.Provider>
     </PlayerContext.Provider>
   );
 };
@@ -783,6 +850,14 @@ export const usePlayer = () => {
   const context = useContext(PlayerContext);
   if (context === undefined) {
     throw new Error('usePlayer must be used within a PlayerProvider');
+  }
+  return context;
+};
+
+export const usePlayerProgress = () => {
+  const context = useContext(PlayerProgressContext);
+  if (context === undefined) {
+    throw new Error('usePlayerProgress must be used within a PlayerProvider');
   }
   return context;
 };

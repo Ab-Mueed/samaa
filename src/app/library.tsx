@@ -26,7 +26,7 @@ interface CustomPlaylist {
 }
 
 export default function LibraryScreen() {
-  const { tracks, likes, history, playTrack, playAll } = usePlayer();
+  const { tracks, likes, history, playTrack, playAll, activeMode } = usePlayer();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -73,9 +73,8 @@ export default function LibraryScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         
-        {/* Header */}
         <View style={[styles.header, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
-          <ThemedText style={styles.headerTitle}>Music Library</ThemedText>
+          <ThemedText style={styles.headerTitle}>{activeMode === 'quran' ? 'Quran Library' : 'Nasheed Library'}</ThemedText>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>

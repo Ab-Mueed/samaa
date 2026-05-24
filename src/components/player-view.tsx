@@ -1,5 +1,5 @@
 import { BottomTabInset, Spacing } from '@/constants/theme';
-import { usePlayer } from '@/context/player-context';
+import { usePlayer, usePlayerProgress } from '@/context/player-context';
 import { useTheme } from '@/hooks/use-theme';
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
@@ -34,12 +34,9 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     currentTrack,
     isPlaying,
     isBuffering,
-    position,
-    duration,
     togglePlay,
     nextTrack,
     prevTrack,
-    seekTo,
     likes,
     toggleLike,
     isShuffle,
@@ -47,8 +44,12 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     toggleShuffle,
     toggleRepeat,
     queue,
-    playTrack
+    playTrack,
+    removeFromQueue,
+    clearQueue
   } = usePlayer();
+
+  const { position, duration, seekTo } = usePlayerProgress();
 
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -74,27 +75,6 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const prevScale = useRef(new Animated.Value(1)).current;
   const nextScale = useRef(new Animated.Value(1)).current;
 
-  // Smooth and extremely lightweight progress tracking
-  const [visualPosition, setVisualPosition] = useState(position);
-
-  // Sync visual position whenever true audio player position updates
-  useEffect(() => {
-    setVisualPosition(position);
-  }, [position]);
-
-  // High performance visual ticking loop (runs 4 times a second, reducing JS thread overhead by 95%)
-  useEffect(() => {
-    if (isPlaying) {
-      const interval = setInterval(() => {
-        setVisualPosition(prev => {
-          const next = prev + 0.25;
-          return next > duration ? duration : next;
-        });
-      }, 250);
-      return () => clearInterval(interval);
-    }
-  }, [isPlaying, duration]);
-
   // Handle Android physical back gesture
   useEffect(() => {
     if (visible) {
@@ -110,17 +90,17 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   // Trigger custom open/close animations
   useEffect(() => {
     if (visible) {
-      Animated.timing(playerExpansion, {
+      Animated.spring(playerExpansion, {
         toValue: 1,
-        duration: 260,
-        easing: Easing.out(Easing.ease), // Ultra-snappy ease-out curve starting instantly fast
+        tension: 180, // High spring tension pops it up instantly with zero startup delay!
+        friction: 18,
         useNativeDriver: true,
       }).start();
     } else {
       Animated.timing(playerExpansion, {
         toValue: 0,
-        duration: 220,
-        easing: Easing.out(Easing.ease),
+        duration: 200, // Rapid linear off-screen slide-down
+        easing: Easing.linear,
         useNativeDriver: true,
       }).start();
     }
@@ -171,7 +151,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     setShowSleepTimer(false);
   };
 
-  const playedPercent = duration > 0 ? Math.max(0, Math.min(visualPosition / duration, 1)) : 0;
+  const playedPercent = duration > 0 ? Math.max(0, Math.min(position / duration, 1)) : 0;
   const currentThumbX = playedPercent * progressBarWidth;
 
   // Elegant button press micro-interactions
@@ -318,21 +298,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
                   styles.progressBarBackgroundTrack, 
                   { backgroundColor: 'rgba(255,255,255,0.16)' }
                 ]}
-              >
-                {/* Tiny Terminal Dot at the end of progress */}
-                <View 
-                  style={{ 
-                    width: 6, 
-                    height: 6, 
-                    borderRadius: 3, 
-                    backgroundColor: 'rgba(255,255,255,0.6)', 
-                    position: 'absolute', 
-                    right: 0, 
-                    top: '50%', 
-                    transform: [{ translateY: -3 }] 
-                  }} 
-                />
-              </View>
+              />
 
               {/* Active Played Track (Thick White Pill) */}
               <View 
@@ -359,7 +325,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
             </Pressable>
 
             <View style={styles.timeLabelsRow}>
-              <ThemedText type="small" style={styles.timeLabel}>{formatTime(visualPosition)}</ThemedText>
+              <ThemedText type="small" style={styles.timeLabel}>{formatTime(position)}</ThemedText>
               <ThemedText type="small" style={styles.timeLabel}>{formatTime(duration)}</ThemedText>
             </View>
           </View>
@@ -425,38 +391,65 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
                 <View style={[styles.queueSheet, { backgroundColor: theme.background }]}>
                   <View style={styles.sheetHeader}>
                     <ThemedText style={styles.sheetTitle}>Playback Queue</ThemedText>
-                    <Pressable onPress={() => setShowQueue(false)}>
-                      <ThemedText type="small" style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
-                    </Pressable>
+                    <View style={{ flexDirection: 'row', gap: Spacing.three, alignItems: 'center' }}>
+                      <Pressable 
+                        onPress={() => {
+                          clearQueue();
+                          setShowQueue(false);
+                        }}
+                      >
+                        <ThemedText type="small" style={{ color: '#E03B3B', fontWeight: 'bold' }}>Clear</ThemedText>
+                      </Pressable>
+                      <Pressable onPress={() => setShowQueue(false)}>
+                        <ThemedText type="small" style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
+                      </Pressable>
+                    </View>
                   </View>
                   <ScrollView style={{ flex: 1 }}>
-                    {queue.map((track, i) => {
-                      const isCurrent = track.id === currentTrack.id;
-                      return (
-                        <Pressable
-                          key={track.id}
-                          onPress={() => {
-                            playTrack(track);
-                            setShowQueue(false);
-                          }}
-                          style={[
-                            styles.queueItem,
-                            isCurrent && { backgroundColor: theme.backgroundSelected }
-                          ]}
-                        >
-                          <Image source={{ uri: track.coverUrl }} style={styles.queueCoverArt} />
-                          <View style={{ flex: 1 }}>
-                            <ThemedText style={{ fontWeight: isCurrent ? 'bold' : 'normal' }}>
-                              {track.title}
-                            </ThemedText>
-                            <ThemedText type="small" themeColor="textSecondary">
-                              {track.artist}
-                            </ThemedText>
-                          </View>
-                          {isCurrent && <Icons.Checked size={18} color={theme.primary} />}
-                        </Pressable>
-                      );
-                    })}
+                    {queue.length === 0 ? (
+                      <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.five }}>
+                        <ThemedText themeColor="textSecondary">Queue is empty</ThemedText>
+                      </View>
+                    ) : (
+                      queue.map((track, i) => {
+                        const isCurrent = track.id === currentTrack.id;
+                        return (
+                          <Pressable
+                            key={`${track.id}-${i}`}
+                            onPress={() => {
+                              playTrack(track);
+                              setShowQueue(false);
+                            }}
+                            style={[
+                              styles.queueItem,
+                              isCurrent && { backgroundColor: theme.backgroundSelected }
+                            ]}
+                          >
+                            <Image source={{ uri: track.coverUrl }} style={styles.queueCoverArt} />
+                            <View style={{ flex: 1 }}>
+                              <ThemedText style={{ fontWeight: isCurrent ? 'bold' : 'normal' }}>
+                                {track.title}
+                              </ThemedText>
+                              <ThemedText type="small" themeColor="textSecondary">
+                                {track.artist}
+                              </ThemedText>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+                              {isCurrent && <Icons.Checked size={18} color={theme.primary} />}
+                              <Pressable
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  removeFromQueue(track.id);
+                                }}
+                                style={{ padding: Spacing.one, minWidth: 28, alignItems: 'center' }}
+                              >
+                                <ThemedText style={{ color: '#E03B3B', fontSize: 16, fontWeight: 'bold' }}>✕</ThemedText>
+                              </Pressable>
+                            </View>
+                          </Pressable>
+                        );
+                      })
+                    )}
                   </ScrollView>
                 </View>
               </Pressable>
