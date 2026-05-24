@@ -1,0 +1,68 @@
+import React from 'react';
+import { 
+  Play, 
+  Pause, 
+  SkipForward, 
+  SkipBack, 
+  Shuffle, 
+  Repeat, 
+  Heart, 
+  Share2, 
+  Search, 
+  Settings, 
+  MoreVertical, 
+  History, 
+  TrendingUp, 
+  ArrowLeft, 
+  ArrowRight, 
+  ListMusic, 
+  Volume2, 
+  Moon, 
+  FileText, 
+  PlusCircle, 
+  Download, 
+  CheckCircle2, 
+  Music, 
+  Mic2, 
+  Disc,
+  FolderHeart,
+  Home,
+  Check,
+  LucideProps
+} from 'lucide-react-native';
+
+export type IconProps = LucideProps & {
+  size?: number;
+  color?: string;
+};
+
+export const Icons = {
+  Play: (props: IconProps) => <Play {...props} />,
+  Pause: (props: IconProps) => <Pause {...props} />,
+  SkipForward: (props: IconProps) => <SkipForward {...props} />,
+  SkipBack: (props: IconProps) => <SkipBack {...props} />,
+  Shuffle: (props: IconProps) => <Shuffle {...props} />,
+  Repeat: (props: IconProps) => <Repeat {...props} />,
+  Heart: (props: IconProps) => <Heart {...props} />,
+  Share: (props: IconProps) => <Share2 {...props} />,
+  Search: (props: IconProps) => <Search {...props} />,
+  Settings: (props: IconProps) => <Settings {...props} />,
+  More: (props: IconProps) => <MoreVertical {...props} />,
+  History: (props: IconProps) => <History {...props} />,
+  Stats: (props: IconProps) => <TrendingUp {...props} />,
+  ArrowLeft: (props: IconProps) => <ArrowLeft {...props} />,
+  ArrowRight: (props: IconProps) => <ArrowRight {...props} />,
+  Queue: (props: IconProps) => <ListMusic {...props} />,
+  Volume: (props: IconProps) => <Volume2 {...props} />,
+  SleepTimer: (props: IconProps) => <Moon {...props} />,
+  Lyrics: (props: IconProps) => <FileText {...props} />,
+  AddPlaylist: (props: IconProps) => <PlusCircle {...props} />,
+  Download: (props: IconProps) => <Download {...props} />,
+  Checked: (props: IconProps) => <Check {...props} />,
+  CheckCircle: (props: IconProps) => <CheckCircle2 {...props} />,
+  Songs: (props: IconProps) => <Music {...props} />,
+  Artists: (props: IconProps) => <Mic2 {...props} />,
+  Albums: (props: IconProps) => <Disc {...props} />,
+  Playlists: (props: IconProps) => <FolderHeart {...props} />,
+  Home: (props: IconProps) => <Home {...props} />,
+};

@@ -1,26 +1,31 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
-import '@/global.css';
-
 import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#1C1A11',
+    background: '#FFF8F6',
+    backgroundElement: '#F4DDDB', // MD3 Surface Variant
+    backgroundSelected: '#E8C3C1', // Selected pill back
+    textSecondary: '#7A5754',
+    primary: '#8F302A', // Deep Red/Brown Shuffle
+    onPrimary: '#FFFFFF',
+    outline: '#857371',
+    playerBackground: '#FFF0EE',
+    accentColor: '#8F302A',
+    accentContainer: '#FFDAD6',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#F1DFDD',
+    background: '#201A19',
+    backgroundElement: '#3B2F2E',
+    backgroundSelected: '#534342',
+    textSecondary: '#D8C2BF',
+    primary: '#FFB4A9',
+    onPrimary: '#680005',
+    outline: '#A08C8A',
+    playerBackground: '#2C2120',
+    accentColor: '#FFB4A9',
+    accentContainer: '#8F302A',
   },
 } as const;
 
@@ -28,13 +33,9 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
