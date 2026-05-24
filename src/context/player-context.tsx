@@ -288,8 +288,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setActiveReciterState(reciter);
     const loadedList = await loadQuranTracks(reciter);
     
-    // Automatically swap the current quranQueue to the new reciter's list to maintain next/prev continuity
-    setQuranQueue(loadedList);
+    // Dynamically update existing custom queue tracks to map to the new reciter's server URLs
+    setQuranQueue(prev => prev.map(track => {
+      const surahNum = parseInt(track.id.split('_').pop() || '1');
+      const matching = loadedList.find(t => t.id.endsWith(`_${surahNum}`));
+      return matching ? matching : track;
+    }));
     
     // Reset Quran active player state so it doesn't try to buffer stale URLs
     setQuranCurrentTrack(null);
@@ -307,14 +311,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Trigger loading spinner overlay transition
     setIsSwitchingMode(true);
     setActiveModeState(mode);
-
-    if (mode === 'quran') {
-      const loadedList = await loadQuranTracks(activeReciter);
-      // Populate active queue with loaded list by default if queue is blank
-      if (quranQueue.length === 0) {
-        setQuranQueue(loadedList);
-      }
-    }
 
     // High fidelity Material switch transition settling time
     setTimeout(() => {

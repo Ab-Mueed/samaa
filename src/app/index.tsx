@@ -46,7 +46,28 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTrackOptions, setSelectedTrackOptions] = useState<Track | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  const triggerToast = (message: string) => {
+    setToastMessage(message);
+    toastOpacity.setValue(0);
+    Animated.sequence([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true
+      }),
+      Animated.delay(1600),
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true
+      })
+    ]).start(() => {
+      setToastMessage(null);
+    });
+  };
 
   // Rotating loop for the custom starburst spinner
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -232,7 +253,19 @@ export default function HomeScreen() {
                       <ThemedText style={styles.trackListName} numberOfLines={1}>{track.title}</ThemedText>
                       <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{track.artist}</ThemedText>
                     </View>
-                    <Icons.Play size={18} color={theme.textSecondary} />
+                    <Pressable 
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        addToQueue(track);
+                        triggerToast(`"${track.title}" added to queue`);
+                      }}
+                      style={({ pressed }) => [
+                        { padding: Spacing.two, borderRadius: 20 },
+                        pressed && { backgroundColor: theme.primary + '15' }
+                      ]}
+                    >
+                      <Icons.Queue size={20} color={theme.textSecondary} />
+                    </Pressable>
                   </Pressable>
                 ))
               ) : (
@@ -265,11 +298,15 @@ export default function HomeScreen() {
                     <Pressable 
                       onPress={(e) => {
                         e.stopPropagation();
-                        setSelectedTrackOptions(track);
+                        addToQueue(track);
+                        triggerToast(`"${track.title}" added to queue`);
                       }}
-                      style={{ padding: Spacing.two }}
+                      style={({ pressed }) => [
+                        { padding: Spacing.two, borderRadius: 20 },
+                        pressed && { backgroundColor: theme.primary + '15' }
+                      ]}
                     >
-                      <Icons.More size={20} color={theme.textSecondary} />
+                      <Icons.Queue size={20} color={theme.textSecondary} />
                     </Pressable>
                   </Pressable>
                 ))}
@@ -340,67 +377,28 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* PREMIUM TRACK OPTIONS MODAL (PLAY / ADD TO QUEUE) */}
-        {selectedTrackOptions && (
-          <Modal
-            visible={true}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setSelectedTrackOptions(null)}
-          >
-            <Pressable onPress={() => setSelectedTrackOptions(null)} style={styles.modalOverlay}>
-              <View style={[styles.optionsDialogCard, { backgroundColor: theme.backgroundElement }]}>
-                <View style={styles.optionsDialogHeader}>
-                  <Image source={{ uri: selectedTrackOptions.coverUrl }} style={styles.optionsCoverArt} />
-                  <View style={{ flex: 1 }}>
-                    <ThemedText style={styles.optionsTrackTitle} numberOfLines={1}>{selectedTrackOptions.title}</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{selectedTrackOptions.artist}</ThemedText>
-                  </View>
-                </View>
 
-                {/* Option 1: Play Now */}
-                <Pressable
-                  onPress={() => {
-                    playTrack(selectedTrackOptions);
-                    setSelectedTrackOptions(null);
-                  }}
-                  style={({ pressed }) => [
-                    styles.optionsRowBtn,
-                    pressed && { backgroundColor: 'rgba(255,255,255,0.06)' }
-                  ]}
-                >
-                  <View style={[styles.optionsIconCircle, { backgroundColor: theme.primary + '15' }]}>
-                    <Icons.Play size={20} color={theme.primary} />
-                  </View>
-                  <ThemedText style={styles.optionsRowText}>Play Now</ThemedText>
-                </Pressable>
 
-                {/* Option 2: Add to Queue */}
-                <Pressable
-                  onPress={() => {
-                    addToQueue(selectedTrackOptions);
-                    setSelectedTrackOptions(null);
-                  }}
-                  style={({ pressed }) => [
-                    styles.optionsRowBtn,
-                    pressed && { backgroundColor: 'rgba(255,255,255,0.06)' }
-                  ]}
-                >
-                  <View style={[styles.optionsIconCircle, { backgroundColor: theme.primary + '15' }]}>
-                    <Icons.Queue size={20} color={theme.primary} />
-                  </View>
-                  <ThemedText style={styles.optionsRowText}>Add to Queue</ThemedText>
-                </Pressable>
-
-                <Pressable 
-                  onPress={() => setSelectedTrackOptions(null)} 
-                  style={[styles.optionsCloseBtn, { backgroundColor: theme.primary + '15' }]}
-                >
-                  <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Cancel</ThemedText>
-                </Pressable>
-              </View>
-            </Pressable>
-          </Modal>
+        {/* PREMIUM FLOAT TOAST */}
+        {toastMessage && (
+          <Animated.View style={[
+            styles.toastContainer, 
+            { 
+              opacity: toastOpacity, 
+              backgroundColor: theme.primary,
+              transform: [{
+                translateY: toastOpacity.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0]
+                })
+              }]
+            }
+          ]}>
+            <Icons.Checked size={16} color={theme.onPrimary || '#FFFFFF'} style={{ marginRight: 8 }} />
+            <ThemedText style={{ color: theme.onPrimary || '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>
+              {toastMessage}
+            </ThemedText>
+          </Animated.View>
         )}
 
       </SafeAreaView>
@@ -667,5 +665,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 20,
     marginTop: Spacing.two,
+  },
+  toastContainer: {
+    position: 'absolute',
+    bottom: 156, // nested comfortably above floating mini-player!
+    left: '10%',
+    right: '10%',
+    borderRadius: 24,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    zIndex: 3000,
   },
 });
