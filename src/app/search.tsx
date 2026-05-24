@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { usePlayer, Track, MOCK_TRACKS } from '@/context/player-context';
+import { usePlayer, Track } from '@/context/player-context';
 import { useTheme } from '@/hooks/use-theme';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -33,26 +33,45 @@ const PRESET_THEMES: { id: ThemeAccent; name: string; color: string }[] = [
 ];
 
 export default function SearchScreen() {
-  const { playTrack, likes, themeAccent, setThemeAccent } = usePlayer();
+  const { playTrack, likes, themeAccent, setThemeAccent, tracks, activeMode } = usePlayer();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   const [query, setQuery] = useState('');
   const [showSettings, setShowSettings] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<string[]>([
+
+  const [recentSearchesNasheed, setRecentSearchesNasheed] = useState<string[]>([
     'Hasbi Rabbi',
     'Kun Anta',
-    'Rahman Ya Rahman'
+    'Mawlaya'
   ]);
 
-  // Filtered tracks based on search query
+  const [recentSearchesQuran, setRecentSearchesQuran] = useState<string[]>([
+    'Al-Fatiha',
+    'Al-Mulk',
+    'Ar-Rahman'
+  ]);
+
+  const recentSearches = activeMode === 'quran' ? recentSearchesQuran : recentSearchesNasheed;
+  const setRecentSearches = activeMode === 'quran' ? setRecentSearchesQuran : setRecentSearchesNasheed;
+
+  // Filtered tracks based on search query with absolute strict sandbox boundaries
   const filteredTracks = query.trim()
-    ? MOCK_TRACKS.filter(track => 
-        track.title.toLowerCase().includes(query.toLowerCase()) ||
-        track.artist.toLowerCase().includes(query.toLowerCase()) ||
-        track.album.toLowerCase().includes(query.toLowerCase())
-      )
+    ? tracks.filter(track => {
+        const isQuranTrack = track.id.startsWith('quran_');
+        const modeMatches = activeMode === 'quran' ? isQuranTrack : !isQuranTrack;
+        if (!modeMatches) return false;
+        
+        return track.title.toLowerCase().includes(query.toLowerCase()) ||
+               track.artist.toLowerCase().includes(query.toLowerCase()) ||
+               track.album.toLowerCase().includes(query.toLowerCase());
+      })
     : [];
+
+  const displayBrowseTracks = tracks.filter(track => {
+    const isQuranTrack = track.id.startsWith('quran_');
+    return activeMode === 'quran' ? isQuranTrack : !isQuranTrack;
+  });
 
   const handleSearchSubmit = () => {
     if (query.trim() && !recentSearches.includes(query.trim())) {
@@ -100,7 +119,7 @@ export default function SearchScreen() {
         <View style={[styles.searchCapsule, { backgroundColor: theme.backgroundElement }]}>
           <Icons.Search size={20} color={theme.textSecondary} style={styles.searchIcon} />
           <TextInput
-            placeholder="Search Nasheeds, artists..."
+            placeholder={activeMode === 'quran' ? "Search Surahs..." : "Search Nasheeds, artists..."}
             placeholderTextColor={`${theme.textSecondary}80`}
             value={query}
             onChangeText={setQuery}
@@ -159,9 +178,11 @@ export default function SearchScreen() {
 
             {/* Popular Searches / Recommendations */}
             <View style={[styles.sectionContainer, { marginTop: Spacing.four }]}>
-              <ThemedText style={styles.sectionTitle}>Browse All Tracks</ThemedText>
+              <ThemedText style={styles.sectionTitle}>
+                {activeMode === 'quran' ? "Browse Surahs" : "Browse All Tracks"}
+              </ThemedText>
               <FlatList
-                data={MOCK_TRACKS}
+                data={displayBrowseTracks}
                 keyExtractor={(item) => item.id}
                 renderItem={renderTrackItem}
                 scrollEnabled={false}

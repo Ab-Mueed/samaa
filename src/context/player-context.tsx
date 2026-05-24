@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { Platform } from 'react-native';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { ThemeAccent } from '@/constants/theme';
+import { QuranReciter, PRESET_RECITERS, QuranService } from '@/services/quran-service';
 
 export interface LyricLine {
   time: number; // in seconds
@@ -48,6 +49,15 @@ export interface PlayerContextProps {
   setThemeAccent: (accent: ThemeAccent) => void;
   userName: string;
   setUserName: (name: string) => void;
+
+  // NEW DUAL MODE PROPERTIES
+  activeMode: 'nasheed' | 'quran';
+  setActiveMode: (mode: 'nasheed' | 'quran') => void;
+  activeReciter: QuranReciter;
+  setActiveReciter: (reciter: QuranReciter) => void;
+  quranReciters: QuranReciter[];
+  isSwitchingMode: boolean;
+  quranTracks: Track[];
 }
 
 export const MOCK_TRACKS: Track[] = [
@@ -186,6 +196,13 @@ export const MOCK_TRACKS: Track[] = [
 const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
 
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // NEW MODE SEPARATED STATES
+  const [activeMode, setActiveModeState] = useState<'nasheed' | 'quran'>('nasheed');
+  const [isSwitchingMode, setIsSwitchingMode] = useState<boolean>(false);
+  const [activeReciter, setActiveReciterState] = useState<QuranReciter>(PRESET_RECITERS[0]);
+  const [quranTracks, setQuranTracks] = useState<Track[]>([]);
+
+  // Sandbox 1: Nasheed States
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isBuffering, setIsBuffering] = useState<boolean>(false);
@@ -195,10 +212,30 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [likes, setLikes] = useState<string[]>([]);
   const [history, setHistory] = useState<string[]>([]);
+
+  // Sandbox 2: Quran States
+  const [quranCurrentTrack, setQuranCurrentTrack] = useState<Track | null>(null);
+  const [quranIsPlaying, setQuranIsPlaying] = useState<boolean>(false);
+  const [quranIsBuffering, setQuranIsBuffering] = useState<boolean>(false);
+  const [quranPosition, setQuranPosition] = useState<number>(0);
+  const [quranDuration, setQuranDuration] = useState<number>(0);
+  const [quranQueue, setQuranQueue] = useState<Track[]>([]);
+  const [quranCurrentIndex, setQuranCurrentIndex] = useState<number>(-1);
+  const [quranLikes, setQuranLikes] = useState<string[]>([]);
+  const [quranHistory, setQuranHistory] = useState<string[]>([]);
+
+  // Layout preference states (OLED theme is AMOLED by default)
+  const [themeAccent, setThemeAccent] = useState<ThemeAccent>('amoled');
+  const [userName, setUserName] = useState<string>('Guest');
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
   const [isRepeat, setIsRepeat] = useState<boolean>(false);
-  const [themeAccent, setThemeAccent] = useState<ThemeAccent>('amoled');
-  const [userName, setUserName] = useState<string>('Nvy');
+
+  // Mode reference to avoid stale closures in active tickers
+  const activeModeRef = useRef<'nasheed' | 'quran'>('nasheed');
+
+  useEffect(() => {
+    activeModeRef.current = activeMode;
+  }, [activeMode]);
 
   // Audio Driver references
   const nativePlayerRef = useRef<any>(null);
@@ -206,7 +243,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const webTimerRef = useRef<any>(null);
 
   useEffect(() => {
-    // Initialize background playback settings on native platforms
+    // Initialize background lock screen configurations
     if (Platform.OS !== 'web') {
       setAudioModeAsync({
         playsInSilentMode: true,
@@ -217,14 +254,68 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     }
 
+    // Dynamic Initial Quran Tracks Fetch
+    loadQuranTracks(activeReciter);
+
     return () => {
-      // Clean up audio drivers on unmount
       cleanupDrivers();
     };
   }, []);
 
+  // Fetch and format Quran Surahs dynamically when active reciter changes
+  const loadQuranTracks = async (reciter: QuranReciter) => {
+    try {
+      const surahs = await QuranService.fetchSurahs();
+      const tracksList = surahs.map(surah => QuranService.transformToTrack(surah, reciter));
+      setQuranTracks(tracksList);
+      return tracksList;
+    } catch (e) {
+      console.log('Error loading Quran tracks', e);
+      return [];
+    }
+  };
+
+  const setActiveReciter = async (reciter: QuranReciter) => {
+    // If playing, pause audio first to let player re-register the correct server URLs cleanly
+    pauseAudio();
+    setActiveReciterState(reciter);
+    const loadedList = await loadQuranTracks(reciter);
+    
+    // Automatically swap the current quranQueue to the new reciter's list to maintain next/prev continuity
+    setQuranQueue(loadedList);
+    
+    // Reset Quran active player state so it doesn't try to buffer stale URLs
+    setQuranCurrentTrack(null);
+    setQuranCurrentIndex(-1);
+    setQuranPosition(0);
+    setQuranDuration(0);
+  };
+
+  const setActiveMode = async (mode: 'nasheed' | 'quran') => {
+    if (mode === activeMode) return;
+
+    // Immediately pause any active playback first to keep audio isolated
+    pauseAudio();
+
+    // Trigger loading spinner overlay transition
+    setIsSwitchingMode(true);
+    setActiveModeState(mode);
+
+    if (mode === 'quran') {
+      const loadedList = await loadQuranTracks(activeReciter);
+      // Populate active queue with loaded list by default if queue is blank
+      if (quranQueue.length === 0) {
+        setQuranQueue(loadedList);
+      }
+    }
+
+    // High fidelity Material switch transition settling time
+    setTimeout(() => {
+      setIsSwitchingMode(false);
+    }, 600);
+  };
+
   const cleanupDrivers = () => {
-    // Clean Web audio
     if (webAudioRef.current) {
       webAudioRef.current.pause();
       webAudioRef.current = null;
@@ -233,8 +324,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       clearInterval(webTimerRef.current);
       webTimerRef.current = null;
     }
-
-    // Clean Native audio using the modern release() API
     if (nativePlayerRef.current) {
       try {
         nativePlayerRef.current.pause();
@@ -251,9 +340,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (webTimerRef.current) clearInterval(webTimerRef.current);
     webTimerRef.current = setInterval(() => {
       if (webAudioRef.current && !webAudioRef.current.paused) {
-        setPosition(Math.floor(webAudioRef.current.currentTime));
-        setDuration(Math.floor(webAudioRef.current.duration) || 0);
-        setIsBuffering(false);
+        const pos = Math.floor(webAudioRef.current.currentTime);
+        const dur = Math.floor(webAudioRef.current.duration) || 0;
+
+        if (activeModeRef.current === 'quran') {
+          setQuranPosition(pos);
+          setQuranDuration(dur);
+          setQuranIsBuffering(false);
+        } else {
+          setPosition(pos);
+          setDuration(dur);
+          setIsBuffering(false);
+        }
 
         if (webAudioRef.current.ended) {
           clearInterval(webTimerRef.current);
@@ -268,14 +366,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (webTimerRef.current) clearInterval(webTimerRef.current);
     webTimerRef.current = setInterval(() => {
       if (player) {
-        // Read directly from the AudioPlayer instance properties
         const currentPos = player.currentTime || 0;
         const totalDuration = player.duration || 0;
         const currentBuffering = player.isBuffering || false;
 
-        setPosition(Math.floor(currentPos));
-        setDuration(Math.floor(totalDuration));
-        setIsBuffering(currentBuffering);
+        if (activeModeRef.current === 'quran') {
+          setQuranPosition(Math.floor(currentPos));
+          setQuranDuration(Math.floor(totalDuration));
+          setQuranIsBuffering(currentBuffering);
+        } else {
+          setPosition(Math.floor(currentPos));
+          setDuration(Math.floor(totalDuration));
+          setIsBuffering(currentBuffering);
+        }
 
         if (currentPos >= totalDuration && totalDuration > 0) {
           clearInterval(webTimerRef.current);
@@ -296,41 +399,73 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const playTrack = (track: Track) => {
     cleanupDrivers();
-    setCurrentTrack(track);
-    setPosition(0);
-    setDuration(track.duration);
-    setIsPlaying(true);
-    setIsBuffering(true);
+    const isQuran = activeMode === 'quran';
 
-    // Track index matching
-    const qIndex = queue.findIndex(t => t.id === track.id);
-    if (qIndex !== -1) {
-      setCurrentIndex(qIndex);
+    if (isQuran) {
+      setQuranCurrentTrack(track);
+      setQuranPosition(0);
+      setQuranDuration(track.duration);
+      setQuranIsPlaying(true);
+      setQuranIsBuffering(true);
+
+      const qIndex = quranQueue.findIndex(t => t.id === track.id);
+      if (qIndex !== -1) {
+        setQuranCurrentIndex(qIndex);
+      } else {
+        const newQueue = [...quranQueue];
+        newQueue.push(track);
+        setQuranQueue(newQueue);
+        setQuranCurrentIndex(newQueue.length - 1);
+      }
+
+      setQuranHistory(prev => {
+        const filtered = prev.filter(id => id !== track.id);
+        return [track.id, ...filtered].slice(0, 10);
+      });
     } else {
-      // If played track is not in queue, add it to queue and play
-      const newQueue = [...queue];
-      newQueue.push(track);
-      setQueue(newQueue);
-      setCurrentIndex(newQueue.length - 1);
-    }
+      setCurrentTrack(track);
+      setPosition(0);
+      setDuration(track.duration);
+      setIsPlaying(true);
+      setIsBuffering(true);
 
-    // Add to history (limit to 10 tracks, prevent consecutive duplicates)
-    setHistory(prev => {
-      const filtered = prev.filter(id => id !== track.id);
-      return [track.id, ...filtered].slice(0, 10);
-    });
+      const qIndex = queue.findIndex(t => t.id === track.id);
+      if (qIndex !== -1) {
+        setCurrentIndex(qIndex);
+      } else {
+        const newQueue = [...queue];
+        newQueue.push(track);
+        setQueue(newQueue);
+        setCurrentIndex(newQueue.length - 1);
+      }
+
+      setHistory(prev => {
+        const filtered = prev.filter(id => id !== track.id);
+        return [track.id, ...filtered].slice(0, 10);
+      });
+    }
 
     if (Platform.OS === 'web') {
       try {
         const audio = new window.Audio(track.audioUrl);
         audio.play().then(() => {
-          setIsPlaying(true);
-          setIsBuffering(false);
+          if (isQuran) {
+            setQuranIsPlaying(true);
+            setQuranIsBuffering(false);
+          } else {
+            setIsPlaying(true);
+            setIsBuffering(false);
+          }
           startWebTimer();
         }).catch((err) => {
-          console.log('Autoplay failed, waiting user interaction', err);
-          setIsPlaying(true);
-          setIsBuffering(false);
+          console.log('Autoplay deferred, awaiting interaction', err);
+          if (isQuran) {
+            setQuranIsPlaying(true);
+            setQuranIsBuffering(false);
+          } else {
+            setIsPlaying(true);
+            setIsBuffering(false);
+          }
           startWebTimer();
         });
         webAudioRef.current = audio;
@@ -340,10 +475,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     } else {
       try {
-        // createAudioPlayer takes the remote URL string directly in expo-audio
         const player = createAudioPlayer(track.audioUrl);
-        
-        // Enable background lock screen controls and metadata
         player.setActiveForLockScreen(true, {
           title: track.title,
           artist: track.artist,
@@ -352,7 +484,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         player.play();
         nativePlayerRef.current = player;
-        setIsPlaying(true);
+        if (isQuran) {
+          setQuranIsPlaying(true);
+        } else {
+          setIsPlaying(true);
+        }
         startNativeTimer(player);
       } catch (err) {
         console.log('Native playback loading failed, running mock', err);
@@ -361,46 +497,83 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Mock play timer for environments with no audio capability
   const mockPlayTimer = (trackDuration: number) => {
-    setIsBuffering(false);
+    const isQuran = activeMode === 'quran';
+    if (isQuran) {
+      setQuranIsBuffering(false);
+    } else {
+      setIsBuffering(false);
+    }
+
     if (webTimerRef.current) clearInterval(webTimerRef.current);
     webTimerRef.current = setInterval(() => {
-      setPosition(prev => {
-        if (prev >= trackDuration) {
-          clearInterval(webTimerRef.current);
-          handleTrackFinished();
-          return 0;
-        }
-        return prev + 1;
-      });
+      if (isQuran) {
+        setQuranPosition(prev => {
+          if (prev >= trackDuration) {
+            clearInterval(webTimerRef.current);
+            handleTrackFinished();
+            return 0;
+          }
+          return prev + 1;
+        });
+      } else {
+        setPosition(prev => {
+          if (prev >= trackDuration) {
+            clearInterval(webTimerRef.current);
+            handleTrackFinished();
+            return 0;
+          }
+          return prev + 1;
+        });
+      }
     }, 1000);
   };
 
   const resumeAudio = () => {
-    setIsPlaying(true);
+    const isQuran = activeMode === 'quran';
+    if (isQuran) {
+      setQuranIsPlaying(true);
+    } else {
+      setIsPlaying(true);
+    }
+
     if (Platform.OS === 'web') {
-      setIsBuffering(false);
+      if (isQuran) setQuranIsBuffering(false);
+      else setIsBuffering(false);
+
       if (webAudioRef.current) {
         webAudioRef.current.play().catch(e => console.log(e));
         startWebTimer();
-      } else if (currentTrack) {
-        mockPlayTimer(currentTrack.duration);
+      } else {
+        const track = isQuran ? quranCurrentTrack : currentTrack;
+        if (track) mockPlayTimer(track.duration);
       }
     } else {
       if (nativePlayerRef.current) {
-        setIsBuffering(nativePlayerRef.current.isBuffering || false);
+        if (isQuran) {
+          setQuranIsBuffering(nativePlayerRef.current.isBuffering || false);
+        } else {
+          setIsBuffering(nativePlayerRef.current.isBuffering || false);
+        }
         nativePlayerRef.current.play();
         startNativeTimer(nativePlayerRef.current);
-      } else if (currentTrack) {
-        mockPlayTimer(currentTrack.duration);
+      } else {
+        const track = isQuran ? quranCurrentTrack : currentTrack;
+        if (track) mockPlayTimer(track.duration);
       }
     }
   };
 
   const pauseAudio = () => {
-    setIsPlaying(false);
-    setIsBuffering(false);
+    const isQuran = activeMode === 'quran';
+    if (isQuran) {
+      setQuranIsPlaying(false);
+      setQuranIsBuffering(false);
+    } else {
+      setIsPlaying(false);
+      setIsBuffering(false);
+    }
+
     if (Platform.OS === 'web') {
       if (webAudioRef.current) {
         webAudioRef.current.pause();
@@ -419,14 +592,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const togglePlay = () => {
-    if (!currentTrack) {
-      if (queue.length > 0) {
-        playTrack(queue[0]);
+    const isQuran = activeMode === 'quran';
+    const track = isQuran ? quranCurrentTrack : currentTrack;
+    const activeQueue = isQuran ? quranQueue : queue;
+    const activeIsPlaying = isQuran ? quranIsPlaying : isPlaying;
+
+    if (!track) {
+      if (activeQueue.length > 0) {
+        playTrack(activeQueue[0]);
       }
       return;
     }
 
-    if (isPlaying) {
+    if (activeIsPlaying) {
       pauseAudio();
     } else {
       resumeAudio();
@@ -434,31 +612,45 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const nextTrack = () => {
-    if (queue.length === 0) return;
+    const isQuran = activeMode === 'quran';
+    const activeQueue = isQuran ? quranQueue : queue;
+    const activeIndex = isQuran ? quranCurrentIndex : currentIndex;
 
-    let nextIndex = currentIndex + 1;
+    if (activeQueue.length === 0) return;
+
+    let nextIndex = activeIndex + 1;
     if (isShuffle) {
-      nextIndex = Math.floor(Math.random() * queue.length);
-    } else if (nextIndex >= queue.length) {
+      nextIndex = Math.floor(Math.random() * activeQueue.length);
+    } else if (nextIndex >= activeQueue.length) {
       nextIndex = 0; // loop queue
     }
 
-    playTrack(queue[nextIndex]);
+    playTrack(activeQueue[nextIndex]);
   };
 
   const prevTrack = () => {
-    if (queue.length === 0) return;
+    const isQuran = activeMode === 'quran';
+    const activeQueue = isQuran ? quranQueue : queue;
+    const activeIndex = isQuran ? quranCurrentIndex : currentIndex;
 
-    let prevIndex = currentIndex - 1;
+    if (activeQueue.length === 0) return;
+
+    let prevIndex = activeIndex - 1;
     if (prevIndex < 0) {
-      prevIndex = queue.length - 1; // loop backwards
+      prevIndex = activeQueue.length - 1; // loop backwards
     }
 
-    playTrack(queue[prevIndex]);
+    playTrack(activeQueue[prevIndex]);
   };
 
   const seekTo = (seconds: number) => {
-    setPosition(seconds);
+    const isQuran = activeMode === 'quran';
+    if (isQuran) {
+      setQuranPosition(seconds);
+    } else {
+      setPosition(seconds);
+    }
+
     if (Platform.OS === 'web') {
       if (webAudioRef.current) {
         webAudioRef.current.currentTime = seconds;
@@ -471,11 +663,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const toggleLike = (trackId: string) => {
-    setLikes(prev => 
-      prev.includes(trackId) 
-        ? prev.filter(id => id !== trackId) 
-        : [...prev, trackId]
-    );
+    const isQuran = activeMode === 'quran';
+    if (isQuran) {
+      setQuranLikes(prev => 
+        prev.includes(trackId) 
+          ? prev.filter(id => id !== trackId) 
+          : [...prev, trackId]
+      );
+    } else {
+      setLikes(prev => 
+        prev.includes(trackId) 
+          ? prev.filter(id => id !== trackId) 
+          : [...prev, trackId]
+      );
+    }
   };
 
   const toggleShuffle = () => {
@@ -487,35 +688,64 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addToQueue = (track: Track) => {
-    if (!queue.find(t => t.id === track.id)) {
-      setQueue(prev => [...prev, track]);
+    const isQuran = activeMode === 'quran';
+    if (isQuran) {
+      if (!quranQueue.find(t => t.id === track.id)) {
+        setQuranQueue(prev => [...prev, track]);
+      }
+    } else {
+      if (!queue.find(t => t.id === track.id)) {
+        setQueue(prev => [...prev, track]);
+      }
     }
   };
 
   const playAll = (trackList: Track[], startIndex = 0) => {
-    setQueue(trackList);
+    const isQuran = activeMode === 'quran';
+    if (isQuran) {
+      setQuranQueue(trackList);
+    } else {
+      setQueue(trackList);
+    }
     if (trackList.length > 0) {
       playTrack(trackList[startIndex]);
     }
   };
 
   const clearHistory = () => {
-    setHistory([]);
+    const isQuran = activeMode === 'quran';
+    if (isQuran) {
+      setQuranHistory([]);
+    } else {
+      setHistory([]);
+    }
   };
+
+  // Map dynamic values based on the currently active mode sandbox
+  const contextTracks = activeMode === 'nasheed' ? MOCK_TRACKS : quranTracks;
+  const contextCurrentTrack = activeMode === 'nasheed' ? currentTrack : quranCurrentTrack;
+  const contextIsPlaying = activeMode === 'nasheed' ? isPlaying : quranIsPlaying;
+  const contextIsBuffering = activeMode === 'nasheed' ? isBuffering : quranIsBuffering;
+  const contextPosition = activeMode === 'nasheed' ? position : quranPosition;
+  const contextDuration = activeMode === 'nasheed' ? duration : quranDuration;
+  const contextQueue = activeMode === 'nasheed' ? queue : quranQueue;
+  const contextCurrentIndex = activeMode === 'nasheed' ? currentIndex : quranCurrentIndex;
+  const contextLikes = activeMode === 'nasheed' ? likes : quranLikes;
+  const contextHistory = activeMode === 'nasheed' ? history : quranHistory;
 
   return (
     <PlayerContext.Provider
       value={{
-        tracks: MOCK_TRACKS,
-        currentTrack,
-        isPlaying,
-        isBuffering,
-        position,
-        duration,
-        queue,
-        currentIndex,
-        likes,
-        history,
+        tracks: contextTracks,
+        currentTrack: contextCurrentTrack,
+        isPlaying: contextIsPlaying,
+        isBuffering: contextIsBuffering,
+        position: contextPosition,
+        duration: contextDuration,
+        queue: contextQueue,
+        currentIndex: contextCurrentIndex,
+        likes: contextLikes,
+        history: contextHistory,
         isShuffle,
         isRepeat,
         playTrack,
@@ -533,6 +763,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setThemeAccent,
         userName,
         setUserName,
+
+        // NEW DUAL MODE PROPERTIES
+        activeMode,
+        setActiveMode,
+        activeReciter,
+        setActiveReciter,
+        quranReciters: PRESET_RECITERS,
+        isSwitchingMode,
+        quranTracks,
       }}
     >
       {children}

@@ -8,7 +8,8 @@ import {
   Modal, 
   Dimensions, 
   SafeAreaView,
-  Platform
+  Platform,
+  ActivityIndicator
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -16,55 +17,37 @@ import { usePlayer, Track } from '@/context/player-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
+import { Spacing, MaxContentWidth, ThemeAccent } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing, MaxContentWidth, ThemeAccent, ACCENT_PALETTES } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const PRESET_THEMES: { id: ThemeAccent; name: string; color: string }[] = [
-  { id: 'rose', name: 'Samaa Rose', color: '#8F302A' },
-  { id: 'teal', name: 'Mint Teal', color: '#006A5C' },
-  { id: 'purple', name: 'Royal Purple', color: '#7E2A8F' },
-  { id: 'indigo', name: 'Indigo Ocean', color: '#005FAF' },
-  { id: 'slate', name: 'Charcoal Slate', color: '#4F5E70' },
-  { id: 'amber', name: 'Forest Amber', color: '#785A00' },
-  { id: 'amoled', name: 'AMOLED Dark', color: '#000000' }
-];
-
 export default function HomeScreen() {
-  const { tracks, playTrack, history, likes, clearHistory, themeAccent, setThemeAccent, userName } = usePlayer();
+  const { 
+    tracks, 
+    playTrack, 
+    history, 
+    likes, 
+    clearHistory, 
+    activeMode, 
+    setActiveMode, 
+    activeReciter, 
+    setActiveReciter, 
+    quranReciters, 
+    isSwitchingMode 
+  } = usePlayer();
+  
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [showStatsModal, setShowStatsModal] = useState(false);
-  const [showThemeModal, setShowThemeModal] = useState(false);
-  const [hours, setHours] = useState('');
-  const [minutes, setMinutes] = useState('');
-  const [ampm, setAmpm] = useState('');
 
-  // Ticking time effect for Material Clock Widget
+  // Clear search query when mode changes
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const currentHours = now.getHours();
-      const currentMinutes = now.getMinutes();
-      
-      const displayHours = currentHours % 12 || 12;
-      const displayMinutes = currentMinutes < 10 ? `0${currentMinutes}` : `${currentMinutes}`;
-      
-      setHours(displayHours.toString());
-      setMinutes(displayMinutes.toString());
-      setAmpm(currentHours >= 12 ? 'PM' : 'AM');
-    };
-
-    updateTime();
-    const interval = setInterval(updateTime, 10000);
-    return () => clearInterval(interval);
-  }, []);
+    setSearchQuery('');
+  }, [activeMode]);
 
   // Filter tracks based on search query
   const filteredTracks = tracks.filter(t => 
@@ -73,43 +56,25 @@ export default function HomeScreen() {
     t.album.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Generate random track for FAB shuffle
+  // Generate random track for shuffle play
   const playRandomTrack = () => {
     if (tracks.length === 0) return;
     const randomIndex = Math.floor(Math.random() * tracks.length);
     playTrack(tracks[randomIndex]);
   };
 
-  // Extract history tracks
-  const historyTracks = history.map(id => tracks.find(t => t.id === id)).filter((t): t is Track => !!t);
 
-  // Compute favorite artist from history & likes
-  const getFavoriteArtist = () => {
-    const artistCounts: { [key: string]: number } = {};
-    historyTracks.forEach(t => {
-      artistCounts[t.artist] = (artistCounts[t.artist] || 0) + 1;
-    });
-    let fav = 'Sami Yusuf';
-    let max = 0;
-    Object.keys(artistCounts).forEach(artist => {
-      if (artistCounts[artist] > max) {
-        max = artistCounts[artist];
-        fav = artist;
-      }
-    });
-    return fav;
-  };
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         
-        {/* CAPSULE SEARCH BAR - SCREENSHOT 2 */}
+        {/* CAPSULE SEARCH BAR */}
         <View style={[styles.searchContainer, { paddingTop: Math.max(Spacing.two, insets.top) }]}>
           <View style={[styles.searchCapsule, { backgroundColor: theme.backgroundElement }]}>
             <Icons.Search size={20} color={theme.textSecondary} style={styles.searchIcon} />
             <TextInput
-              placeholder="Search Nasheeds..."
+              placeholder={activeMode === 'quran' ? "Search Surahs..." : "Search Nasheeds..."}
               placeholderTextColor={theme.textSecondary}
               style={[styles.searchInput, { color: theme.text }]}
               value={searchQuery}
@@ -131,28 +96,99 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* MODAL SWITCHER - SEGMENTED BAR */}
+        <View style={styles.modeSwitcherContainer}>
+          <View style={[styles.modeSwitcherCapsule, { backgroundColor: theme.backgroundElement }]}>
+            <Pressable 
+              onPress={() => setActiveMode('quran')}
+              style={[
+                styles.modeOption, 
+                activeMode === 'quran' && { backgroundColor: theme.primary }
+              ]}
+            >
+              <Icons.Book 
+                size={16} 
+                color={activeMode === 'quran' ? (theme.onPrimary || '#FFFFFF') : theme.textSecondary} 
+                style={{ marginRight: Spacing.one }}
+              />
+              <ThemedText 
+                style={[
+                  styles.modeText, 
+                  activeMode === 'quran' && { color: theme.onPrimary || '#FFFFFF', fontWeight: 'bold' }
+                ]}
+              >
+                Quran Recitation
+              </ThemedText>
+            </Pressable>
+
+            <Pressable 
+              onPress={() => setActiveMode('nasheed')}
+              style={[
+                styles.modeOption, 
+                activeMode === 'nasheed' && { backgroundColor: theme.primary }
+              ]}
+            >
+              <Icons.Songs 
+                size={16} 
+                color={activeMode === 'nasheed' ? (theme.onPrimary || '#FFFFFF') : theme.textSecondary} 
+                style={{ marginRight: Spacing.one }}
+              />
+              <ThemedText 
+                style={[
+                  styles.modeText, 
+                  activeMode === 'nasheed' && { color: theme.onPrimary || '#FFFFFF', fontWeight: 'bold' }
+                ]}
+              >
+                Vocal Nasheed
+              </ThemedText>
+            </Pressable>
+          </View>
+        </View>
+
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
-          {/* USER GREETING & PREMIUM METRIC CLOCK - SCREENSHOT ACCURATE */}
-          <View style={styles.greetingContainer}>
-            <ThemedText style={styles.hiText}>Hi {userName}</ThemedText>
-            
-            <View style={styles.clockRow}>
-              <View style={[styles.clockCard, { backgroundColor: theme.backgroundSelected || 'rgba(255,255,255,0.08)' }]}>
-                <ThemedText style={[styles.clockText, { color: theme.primary }]}>{hours}</ThemedText>
-              </View>
-              
-              <ThemedText style={[styles.clockColon, { color: theme.textSecondary }]}>:</ThemedText>
-              
-              <View style={[styles.clockCard, { backgroundColor: theme.backgroundElement }]}>
-                <ThemedText style={[styles.clockText, { color: theme.text }]}>{minutes}</ThemedText>
-              </View>
-
-              <View style={styles.ampmContainer}>
-                <ThemedText style={[styles.ampmText, { color: theme.textSecondary }]}>{ampm}</ThemedText>
-              </View>
+          {/* DYNAMIC RECITER SELECTOR (ONLY FOR QURAN MODE) */}
+          {activeMode === 'quran' && (
+            <View style={styles.reciterSection}>
+              <ThemedText style={[styles.sectionTitle, { color: theme.primary, marginBottom: Spacing.two }]}>
+                Choose Reciter
+              </ThemedText>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.reciterRow}
+              >
+                {quranReciters.map((reciter) => {
+                  const isActive = activeReciter.id === reciter.id;
+                  return (
+                    <Pressable
+                      key={reciter.id}
+                      onPress={() => setActiveReciter(reciter)}
+                      style={styles.reciterItem}
+                    >
+                      <View style={[
+                        styles.reciterAvatarWrapper,
+                        isActive && { borderColor: theme.primary, borderWidth: 2 }
+                      ]}>
+                        <Image source={{ uri: reciter.avatarUrl }} style={styles.reciterAvatar} />
+                      </View>
+                      <ThemedText 
+                        numberOfLines={1} 
+                        style={[
+                          styles.reciterNameText,
+                          isActive && { color: theme.primary, fontWeight: 'bold' }
+                        ]}
+                      >
+                        {reciter.name.split(' ').pop()}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
             </View>
-          </View>
+          )}
+
+
 
           {/* SEARCH RESULTS OR QUICK PICKS */}
           {searchQuery.length > 0 ? (
@@ -167,8 +203,8 @@ export default function HomeScreen() {
                   >
                     <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
                     <View style={styles.trackListMeta}>
-                      <ThemedText style={styles.trackListName}>{track.title}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">{track.artist}</ThemedText>
+                      <ThemedText style={styles.trackListName} numberOfLines={1}>{track.title}</ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{track.artist}</ThemedText>
                     </View>
                     <Icons.Play size={18} color={theme.textSecondary} />
                   </Pressable>
@@ -179,9 +215,11 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              {/* QUICK PICKS - SCREENSHOT 2 */}
+              {/* QUICK PICKS Section */}
               <View style={styles.sectionContainer}>
-                <ThemedText style={[styles.sectionTitle, { color: theme.primary }]}>Quick picks</ThemedText>
+                <ThemedText style={[styles.sectionTitle, { color: theme.primary }]}>
+                  {activeMode === 'quran' ? "Selected Surahs" : "Quick picks"}
+                </ThemedText>
                 
                 {tracks.slice(0, 4).map(track => (
                   <Pressable 
@@ -195,18 +233,25 @@ export default function HomeScreen() {
                       transition={250}
                     />
                     <View style={styles.trackListMeta}>
-                      <ThemedText style={styles.trackListName}>{track.title}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">{track.artist}</ThemedText>
+                      <ThemedText style={styles.trackListName} numberOfLines={1}>{track.title}</ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{track.artist}</ThemedText>
                     </View>
                     <Icons.More size={20} color={theme.textSecondary} />
                   </Pressable>
                 ))}
               </View>
 
-              {/* KEEP LISTENING - SCREENSHOT 2 */}
+              {/* KEEP LISTENING (Horizontal Cards list) */}
               <View style={styles.sectionContainer}>
                 <View style={styles.sectionHeaderRow}>
-                  <ThemedText style={[styles.sectionTitle, { color: theme.primary }]}>Keep listening</ThemedText>
+                  <View>
+                    <ThemedText style={[styles.sectionTitle, { color: theme.primary, marginBottom: 2 }]}>
+                      {activeMode === 'quran' ? "Browse all surahs" : "Keep listening"}
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {activeMode === 'quran' ? `Beautiful recitations by Sheikh ${activeReciter.name.split(' ').pop()}` : "Beautiful spiritual vocal harmonies"}
+                    </ThemedText>
+                  </View>
                 </View>
 
                 <ScrollView 
@@ -214,7 +259,7 @@ export default function HomeScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.horizontalScrollContent}
                 >
-                  {tracks.map(track => (
+                  {tracks.slice(activeMode === 'quran' ? 0 : 0).map(track => (
                     <Pressable 
                       key={track.id}
                       onPress={() => playTrack(track)}
@@ -225,9 +270,9 @@ export default function HomeScreen() {
                         style={styles.cardImage} 
                         transition={300}
                       />
-                      <ThemedText numberOfLines={1} style={styles.cardTitle}>{track.title}</ThemedText>
+                      <ThemedText numberOfLines={1} style={styles.cardTitle}>{track.title.split(' (')[0]}</ThemedText>
                       <ThemedText numberOfLines={1} type="small" themeColor="textSecondary" style={styles.cardSubtitle}>
-                        {track.artist} • {Math.floor(track.duration / 60)}:{(track.duration % 60) < 10 ? '0' : ''}{track.duration % 60}
+                        {activeMode === 'quran' ? `${track.album}` : `${track.artist}`}
                       </ThemedText>
                     </Pressable>
                   ))}
@@ -236,141 +281,24 @@ export default function HomeScreen() {
             </>
           )}
 
-          {/* Padding for bottom floating player overlay */}
+          {/* Spacer padding for bottom floating player */}
           <View style={{ height: 160 }} />
 
         </ScrollView>
 
-        {/* HISTORY POPUP MODAL */}
-        {showHistoryModal && (
-          <Modal visible={true} transparent={true} animationType="slide" onRequestClose={() => setShowHistoryModal(false)}>
-            <Pressable onPress={() => setShowHistoryModal(false)} style={styles.modalOverlay}>
-              <View style={[styles.historySheet, { backgroundColor: theme.background }]}>
-                <View style={styles.sheetHeader}>
-                  <ThemedText style={styles.sheetTitle}>Listening History</ThemedText>
-                  <View style={{ flexDirection: 'row', gap: Spacing.three }}>
-                    <Pressable onPress={clearHistory}>
-                      <ThemedText type="small" style={{ color: '#E03B3B' }}>Clear</ThemedText>
-                    </Pressable>
-                    <Pressable onPress={() => setShowHistoryModal(false)}>
-                      <ThemedText type="small" style={{ color: theme.primary }}>Close</ThemedText>
-                    </Pressable>
-                  </View>
-                </View>
-                <ScrollView style={{ flex: 1 }}>
-                  {historyTracks.length > 0 ? (
-                    historyTracks.map((track, i) => (
-                      <Pressable
-                        key={`${track.id}-${i}`}
-                        onPress={() => {
-                          playTrack(track);
-                          setShowHistoryModal(false);
-                        }}
-                        style={styles.trackListItem}
-                      >
-                        <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
-                        <View style={styles.trackListMeta}>
-                          <ThemedText style={styles.trackListName}>{track.title}</ThemedText>
-                          <ThemedText type="small" themeColor="textSecondary">{track.artist}</ThemedText>
-                        </View>
-                        <Icons.Play size={18} color={theme.textSecondary} />
-                      </Pressable>
-                    ))
-                  ) : (
-                    <ThemedText themeColor="textSecondary" style={styles.emptyHistoryText}>
-                      Your listening history is empty. Start playing Nasheeds!
-                    </ThemedText>
-                  )}
-                </ScrollView>
-              </View>
-            </Pressable>
-          </Modal>
+        {/* MATERIAL UI DUAL-MODE LOADING SPINNER OVERLAY */}
+        {isSwitchingMode && (
+          <View style={styles.loadingSpinnerContainer}>
+            <View style={[styles.loadingSpinnerCard, { backgroundColor: theme.backgroundElement }]}>
+              <ActivityIndicator size="large" color={theme.primary} />
+              <ThemedText style={[styles.loadingText, { color: theme.text, marginTop: Spacing.two }]}>
+                {activeMode === 'quran' ? "Loading Quran Audio API..." : "Loading Nasheeds Sandbox..."}
+              </ThemedText>
+            </View>
+          </View>
         )}
 
-        {/* STATS ANALYTICS POPUP MODAL */}
-        {showStatsModal && (
-          <Modal visible={true} transparent={true} animationType="fade" onRequestClose={() => setShowStatsModal(false)}>
-            <Pressable onPress={() => setShowStatsModal(false)} style={styles.modalOverlay}>
-              <View style={[styles.statsCard, { backgroundColor: theme.backgroundElement }]}>
-                <ThemedText style={styles.statsTitle}>Samaa Analytics</ThemedText>
-                
-                <View style={styles.statsRow}>
-                  <ThemedText themeColor="textSecondary">Total Plays:</ThemedText>
-                  <ThemedText style={styles.statsValue}>{history.length} tracks</ThemedText>
-                </View>
-                <View style={styles.statsRow}>
-                  <ThemedText themeColor="textSecondary">Liked Tracks:</ThemedText>
-                  <ThemedText style={styles.statsValue}>{likes.length} favorited</ThemedText>
-                </View>
-                <View style={styles.statsRow}>
-                  <ThemedText themeColor="textSecondary">Fav Artist:</ThemedText>
-                  <ThemedText style={styles.statsValue}>{getFavoriteArtist()}</ThemedText>
-                </View>
-                <View style={styles.statsRow}>
-                  <ThemedText themeColor="textSecondary">Genre Focus:</ThemedText>
-                  <ThemedText style={styles.statsValue}>Vocal-Only Spirtual</ThemedText>
-                </View>
-  
-                <Pressable onPress={() => setShowStatsModal(false)} style={styles.statsCloseBtn}>
-                  <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Awesome</ThemedText>
-                </Pressable>
-              </View>
-            </Pressable>
-          </Modal>
-        )}
 
-        {/* APPEARANCE / THEME SELECTOR MODAL */}
-        {showThemeModal && (
-          <Modal
-            visible={true}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setShowThemeModal(false)}
-          >
-            <Pressable onPress={() => setShowThemeModal(false)} style={styles.modalOverlay}>
-              <View style={[styles.themeDialog, { backgroundColor: theme.backgroundElement }]}>
-                <ThemedText style={styles.dialogTitle}>Appearance Settings</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.dialogSubtitle}>
-                  Select an accent color to customize your Material Design theme
-                </ThemedText>
-
-                <ScrollView style={styles.themeListContainer} showsVerticalScrollIndicator={false}>
-                  {PRESET_THEMES.map((item) => {
-                    const isSelected = themeAccent === item.id;
-                    return (
-                      <Pressable
-                        key={item.id}
-                        onPress={() => {
-                          setThemeAccent(item.id);
-                        }}
-                        style={[
-                          styles.themeOptionRow,
-                          isSelected && { backgroundColor: 'rgba(255,255,255,0.08)' }
-                        ]}
-                      >
-                        <View style={[styles.colorSwatch, { backgroundColor: item.color }]} />
-                        <ThemedText style={[
-                          styles.themeName,
-                          isSelected && { fontWeight: 'bold', color: theme.primary }
-                        ]}>
-                          {item.name}
-                        </ThemedText>
-                        {isSelected && <Icons.Checked size={18} color={theme.primary} />}
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-
-                <Pressable 
-                  onPress={() => setShowThemeModal(false)} 
-                  style={[styles.dialogCloseBtn, { backgroundColor: theme.primary }]}
-                >
-                  <ThemedText style={{ color: '#FFFFFF', fontWeight: 'bold' }}>Apply Theme</ThemedText>
-                </Pressable>
-              </View>
-            </Pressable>
-          </Modal>
-        )}
 
       </SafeAreaView>
     </ThemedView>
@@ -417,85 +345,72 @@ const styles = StyleSheet.create({
   searchSettingsBtn: {
     padding: Spacing.one,
   },
-  greetingContainer: {
-    alignSelf: 'stretch',
-    paddingHorizontal: 0, // Left-aligned perfectly with list columns below!
-    marginTop: Spacing.two,
-    marginBottom: Spacing.four,
-  },
-  hiText: {
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-    lineHeight: 34, // Prevents bottom cutoff on Android descenders!
-    paddingBottom: 2,
-  },
-  timeText: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  clockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.two,
-  },
-  clockCard: {
-    paddingHorizontal: 28, // Optimized horizontal padding to give numbers ample space!
-    paddingVertical: 16,  // Plump vertical spacing for capsule layout
-    borderRadius: 24,     // Rounded Material You capsule styling
-    minWidth: 110,        // Widen the card to 110px to completely prevent text cropping
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clockText: {
-    fontSize: 42,         // Bold, prominent and large numbers
-    fontWeight: '800',
-    lineHeight: 48,       // Explicit line height to prevent vertical cutting
-  },
-  clockColon: {
-    fontSize: 42,         // Prominent colon
-    fontWeight: '800',
-    lineHeight: 48,       // Match numbers' line height to prevent cutting
-    marginHorizontal: Spacing.two,
-  },
-  ampmContainer: {
-    marginLeft: Spacing.two,
-    justifyContent: 'center',
-  },
-  ampmText: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  scrollContent: {
+  modeSwitcherContainer: {
     paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
-  },
-  quickActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.five,
-    marginVertical: Spacing.three,
-  },
-  actionItemContainer: {
+    marginVertical: Spacing.two,
     alignItems: 'center',
   },
-  circleActionButton: {
+  modeSwitcherCapsule: {
+    flexDirection: 'row',
+    height: 50,
+    borderRadius: 25,
+    padding: 4,
+    width: '100%',
+    maxWidth: 360,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+  },
+  modeOption: {
+    flex: 1,
+    borderRadius: 21,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reciterSection: {
+    marginTop: Spacing.one,
+    marginBottom: Spacing.two,
+  },
+  reciterRow: {
+    paddingHorizontal: 0,
+    gap: Spacing.two,
+  },
+  reciterItem: {
+    alignItems: 'center',
+    width: 72,
+  },
+  reciterAvatarWrapper: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.one,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    padding: 2,
+    borderColor: 'transparent',
+    borderWidth: 2,
+    overflow: 'hidden',
   },
-  actionLabel: {
-    fontSize: 13,
+  reciterAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 30,
   },
+  reciterNameText: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.one,
+  },
+
   sectionContainer: {
     marginTop: Spacing.three,
   },
@@ -506,9 +421,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
-    marginBottom: Spacing.two,
   },
   trackListItem: {
     flexDirection: 'row',
@@ -533,6 +447,7 @@ const styles = StyleSheet.create({
   horizontalScrollContent: {
     paddingRight: Spacing.four,
     gap: Spacing.three,
+    paddingVertical: Spacing.one,
   },
   cardContainer: {
     width: 140,
@@ -556,148 +471,39 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
     fontSize: 14,
   },
-  fab: {
-    position: 'absolute',
-    bottom: Platform.OS === 'web' ? 170 : 96, // Floats cleanly above the bottom player
-    right: Spacing.three,
-    width: 60,
-    height: 60,
-    borderRadius: 16, // Beautiful squarish-circle MD3 FAB!
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    zIndex: 800,
-  },
-  fabPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.95 }],
-  },
   pressed: {
     opacity: 0.65,
+  },
+  loadingSpinnerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000,
+  },
+  loadingSpinnerCard: {
+    padding: Spacing.four,
+    borderRadius: 24,
+    alignItems: 'center',
+    width: 260,
+    elevation: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
-  },
-  historySheet: {
-    height: SCREEN_WIDTH * 1.2,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: Spacing.three,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.three,
-    paddingBottom: Spacing.two,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-  },
-  sheetTitle: {
-    fontWeight: '800',
-    fontSize: 18,
-  },
-  emptyHistoryText: {
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 14,
-    paddingHorizontal: Spacing.four,
-  },
-  statsCard: {
-    width: 300,
-    borderRadius: 28,
-    padding: Spacing.four,
-    alignSelf: 'center',
-    marginTop: 150,
-    elevation: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-  },
-  statsTitle: {
-    fontWeight: '800',
-    fontSize: 20,
-    marginBottom: Spacing.three,
-    textAlign: 'center',
-    color: '#0F4C81',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.one,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
-  },
-  statsValue: {
-    fontWeight: '700',
-  },
-  statsCloseBtn: {
-    paddingVertical: Spacing.two,
-    alignItems: 'center',
-    borderRadius: 20,
-    marginTop: Spacing.two,
-  },
-  dialogTitle: {
-    fontWeight: '800',
-    fontSize: 18,
-    marginBottom: Spacing.three,
-    textAlign: 'center',
-  },
-  themeDialog: {
-    width: Dimensions.get('window').width * 0.85,
-    borderRadius: 28,
-    padding: Spacing.four,
-    elevation: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    alignSelf: 'center',
-  },
-  dialogSubtitle: {
-    fontSize: 13,
-    textAlign: 'center',
-    marginBottom: Spacing.three,
-    lineHeight: 18,
-  },
-  themeListContainer: {
-    width: '100%',
-    maxHeight: 240,
-    marginBottom: Spacing.three,
-  },
-  themeOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.two,
-    borderRadius: 12,
-    marginVertical: Spacing.one / 2,
-    gap: Spacing.two,
-  },
-  colorSwatch: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  themeName: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  dialogCloseBtn: {
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
   },
 });

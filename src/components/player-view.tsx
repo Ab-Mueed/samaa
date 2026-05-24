@@ -19,7 +19,6 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Line, Path } from 'react-native-svg';
 import { Icons } from './icons';
 import { ThemedText } from './themed-text';
 
@@ -65,9 +64,8 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   // Sleep timer interval ref
   const sleepTimerRef = useRef<any>(null);
 
-  // 60fps Visual position and Wave phase states
+  // 60fps Visual position state
   const [visualPosition, setVisualPosition] = useState(position);
-  const [wavePhase, setWavePhase] = useState(0);
   const lastTimeRef = useRef<number>(Date.now());
   const animationRef = useRef<number | null>(null);
 
@@ -98,7 +96,6 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
           return next > duration ? duration : next;
         });
 
-        setWavePhase(prev => prev + 0.15); // Horizontally flows the wave at 60fps
         animationRef.current = requestAnimationFrame(tick);
       };
       lastTimeRef.current = Date.now();
@@ -185,21 +182,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     }
   };
 
-  // Premium smooth SVG Sine Wave Path Generator with Phase-shift
-  const generateWavePath = (width: number, phase: number) => {
-    if (width <= 0) return '';
-    let path = 'M 0 10';
-    const period = 14; // wave frequency
-    const amplitude = 3.5; // wave height
-    const step = 2; // draw segment every 2 pixels for continuous curves
 
-    for (let x = 0; x <= width; x += step) {
-      const angle = (x / period) * Math.PI * 2 - phase;
-      const y = 10 + Math.sin(angle) * amplitude;
-      path += ` L ${x} ${y}`;
-    }
-    return path;
-  };
 
   const startSleepTimer = (minutes: number) => {
     setSleepTimeRemaining(minutes * 60);
@@ -340,44 +323,54 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
             <ThemedText style={styles.artistName} numberOfLines={1}>{currentTrack.artist}</ThemedText>
           </View>
 
-          {/* PREMIUM SVG WAVY SEEK BAR */}
+          {/* PREMIUM SLEEK PROGRESS SLIDER WITH VERTICAL SCRUB THUMB */}
           <View style={styles.progressContainer}>
             <Pressable
               onPress={handleProgressBarTouch}
               onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
               style={styles.progressBarTrackWrapper}
             >
-              {progressBarWidth > 0 && (
-                <Svg height="20" width={progressBarWidth} style={styles.waveSvg}>
-                  {/* Active Played Wavy Path */}
-                  <Path
-                    d={generateWavePath(currentThumbX, wavePhase)}
-                    fill="none"
-                    stroke={theme.primary}
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                  />
-                  {/* Inactive Remaining Flat Line */}
-                  <Line
-                    x1={currentThumbX}
-                    y1="10"
-                    x2={progressBarWidth}
-                    y2="10"
-                    stroke="rgba(255,255,255,0.12)"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                  />
-                </Svg>
-              )}
+              {/* Background Inactive Track */}
+              <View 
+                style={[
+                  styles.progressBarBackgroundTrack, 
+                  { backgroundColor: 'rgba(255,255,255,0.16)' }
+                ]}
+              >
+                {/* Tiny Terminal Dot at the end of progress */}
+                <View 
+                  style={{ 
+                    width: 6, 
+                    height: 6, 
+                    borderRadius: 3, 
+                    backgroundColor: 'rgba(255,255,255,0.6)', 
+                    position: 'absolute', 
+                    right: 0, 
+                    top: '50%', 
+                    transform: [{ translateY: -3 }] 
+                  }} 
+                />
+              </View>
 
-              {/* Slider Thumb Circular Dot */}
+              {/* Active Played Track (Thick White Pill) */}
+              <View 
+                style={[
+                  styles.progressBarActiveTrack, 
+                  { 
+                    backgroundColor: '#FFFFFF',
+                    width: currentThumbX
+                  }
+                ]}
+              />
+
+              {/* Slider Thumb: Bold Rounded Vertical Bar */}
               <View
                 style={[
-                  styles.progressBarThumb,
+                  styles.progressBarVerticalThumb,
                   {
                     backgroundColor: '#FFFFFF',
                     left: currentThumbX,
-                    transform: [{ translateX: -7 }, { translateY: -7 }]
+                    transform: [{ translateX: -3 }, { translateY: -18 }]
                   }
                 ]}
               />
@@ -628,15 +621,26 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
   },
-  waveSvg: {
+  progressBarBackgroundTrack: {
+    height: 4,
+    borderRadius: 2,
+    width: '100%',
     position: 'absolute',
-    left: 0,
-    top: 0,
+    top: '50%',
+    marginTop: -2,
   },
-  progressBarThumb: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+  progressBarActiveTrack: {
+    height: 16,
+    borderRadius: 8,
+    position: 'absolute',
+    top: '50%',
+    marginTop: -8,
+    left: 0,
+  },
+  progressBarVerticalThumb: {
+    width: 6,
+    height: 36,
+    borderRadius: 3,
     position: 'absolute',
     top: '50%',
   },

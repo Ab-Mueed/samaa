@@ -30,21 +30,12 @@ const PRESET_THEMES: { id: ThemeAccent; name: string; color: string }[] = [
 ];
 
 export default function SettingsScreen() {
-  const { themeAccent, setThemeAccent, userName, setUserName } = usePlayer();
+  const { themeAccent, setThemeAccent } = usePlayer();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const [showThemeModal, setShowThemeModal] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [tempName, setTempName] = useState(userName);
-
-  const handleSaveName = () => {
-    if (tempName.trim().length > 0) {
-      setUserName(tempName.trim());
-    }
-    setIsEditingName(false);
-  };
 
   return (
     <ThemedView style={styles.container}>
@@ -65,55 +56,6 @@ export default function SettingsScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
-            <ThemedText style={styles.cardSectionTitle}>User Profile</ThemedText>
-            
-            <View style={styles.profileRow}>
-              <View style={[styles.avatarCircle, { backgroundColor: theme.primary }]}>
-                <ThemedText style={styles.avatarLetter}>
-                  {userName.charAt(0).toUpperCase()}
-                </ThemedText>
-              </View>
-
-              <View style={styles.profileDetails}>
-                {isEditingName ? (
-                  <View style={styles.editNameWrapper}>
-                    <TextInput
-                      value={tempName}
-                      onChangeText={setTempName}
-                      style={[styles.nameInput, { color: theme.text, borderBottomColor: theme.primary }]}
-                      placeholder="Enter name..."
-                      placeholderTextColor={theme.textSecondary}
-                      autoFocus={true}
-                      maxLength={15}
-                    />
-                    <Pressable 
-                      onPress={handleSaveName} 
-                      style={[styles.saveBtn, { backgroundColor: theme.primary }]}
-                    >
-                      <Icons.Checked size={16} color="#FFFFFF" />
-                    </Pressable>
-                  </View>
-                ) : (
-                  <View style={styles.displayNameRow}>
-                    <View>
-                      <ThemedText type="small" themeColor="textSecondary">Display Name</ThemedText>
-                      <ThemedText style={styles.displayName}>{userName}</ThemedText>
-                    </View>
-                    <Pressable 
-                      onPress={() => {
-                        setTempName(userName);
-                        setIsEditingName(true);
-                      }} 
-                      style={styles.editBtn}
-                    >
-                      <Icons.Queue size={18} color={theme.primary} />
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            </View>
-          </View>
 
           <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
             <Pressable 
