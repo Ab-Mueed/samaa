@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, Pressable, Platform, ActivityIndicator } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, StyleSheet, Pressable, Platform, ActivityIndicator, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { usePlayer } from '@/context/player-context';
 import { ThemedText } from './themed-text';
@@ -15,11 +15,45 @@ export function MiniPlayer({ onPress }: MiniPlayerProps) {
   const { currentTrack, isPlaying, isBuffering, togglePlay, nextTrack } = usePlayer();
   const theme = useTheme();
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(15)).current;
+
+  useEffect(() => {
+    if (currentTrack) {
+      fadeAnim.setValue(0);
+      slideAnim.setValue(15);
+      
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [currentTrack?.id]);
+
   if (!currentTrack) return null;
 
   return (
-    <Pressable onPress={onPress} style={[styles.outerContainer, { backgroundColor: theme.playerBackground || '#FFF0EE', borderTopColor: theme.backgroundElement }]}>
-      <View style={styles.container}>
+    <Animated.View 
+      style={[
+        styles.outerContainer, 
+        { 
+          backgroundColor: theme.playerBackground || '#FFF0EE', 
+          borderColor: theme.backgroundSelected || theme.backgroundElement,
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }
+      ]}
+    >
+      <Pressable onPress={onPress} style={styles.container}>
         <View style={styles.leftSection}>
           <Image 
             source={{ uri: currentTrack.coverUrl }} 
@@ -64,26 +98,26 @@ export function MiniPlayer({ onPress }: MiniPlayerProps) {
             <Icons.SkipForward size={24} color={theme.text} />
           </Pressable>
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   outerContainer: {
     height: 72,
-    width: '100%',
     position: (Platform.OS === 'web' ? 'fixed' : 'absolute') as any,
-    bottom: Platform.OS === 'web' ? 76 : BottomTabInset, // Snug above tab bars
-    left: 0,
-    right: 0,
-    borderTopWidth: 1,
+    bottom: Platform.OS === 'web' ? 84 : BottomTabInset + 8, // Snug yet floating elegantly
+    left: Spacing.three,
+    right: Spacing.three,
+    borderRadius: 24, // Perfectly rounded all around!
+    borderWidth: 1.5, // Border outlines for unified Material You design
     zIndex: 900,
     elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   container: {
     flex: 1,
@@ -102,7 +136,7 @@ const styles = StyleSheet.create({
   coverArt: {
     width: 48,
     height: 48,
-    borderRadius: 8,
+    borderRadius: 24, // Circular album art!
   },
   trackInfo: {
     flex: 1,
@@ -128,7 +162,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pressed: {
-    opacity: 0.6,
-    transform: [{ scale: 0.95 }],
+    opacity: 0.55,
+    transform: [{ scale: 0.88 }], // Elastic spring press scaling
   },
 });

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { createAudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { ThemeAccent } from '@/constants/theme';
 
 export interface LyricLine {
   time: number; // in seconds
@@ -43,6 +44,8 @@ export interface PlayerContextProps {
   addToQueue: (track: Track) => void;
   playAll: (trackList: Track[], startIndex?: number) => void;
   clearHistory: () => void;
+  themeAccent: ThemeAccent;
+  setThemeAccent: (accent: ThemeAccent) => void;
 }
 
 export const MOCK_TRACKS: Track[] = [
@@ -192,6 +195,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [history, setHistory] = useState<string[]>([]);
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
   const [isRepeat, setIsRepeat] = useState<boolean>(false);
+  const [themeAccent, setThemeAccent] = useState<ThemeAccent>('rose');
 
   // Audio Driver references
   const nativePlayerRef = useRef<any>(null);
@@ -199,6 +203,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const webTimerRef = useRef<any>(null);
 
   useEffect(() => {
+    // Initialize background playback settings on native platforms
+    if (Platform.OS !== 'web') {
+      setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: 'doNotMix',
+      }).catch(err => {
+        console.log('Error setting audio mode', err);
+      });
+    }
+
     return () => {
       // Clean up audio drivers on unmount
       cleanupDrivers();
@@ -324,6 +339,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         // createAudioPlayer takes the remote URL string directly in expo-audio
         const player = createAudioPlayer(track.audioUrl);
+        
+        // Enable background lock screen controls and metadata
+        player.setActiveForLockScreen(true, {
+          title: track.title,
+          artist: track.artist,
+          artworkUrl: track.coverUrl
+        });
+
         player.play();
         nativePlayerRef.current = player;
         setIsPlaying(true);
@@ -503,6 +526,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addToQueue,
         playAll,
         clearHistory,
+        themeAccent,
+        setThemeAccent,
       }}
     >
       {children}

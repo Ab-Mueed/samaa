@@ -3,12 +3,24 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { Colors } from '@/constants/theme';
+import { ACCENT_PALETTES, ThemeAccent } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePlayer } from '@/context/player-context';
 
 export function useTheme() {
   const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
+  const systemTheme = scheme === 'unspecified' ? 'light' : scheme;
 
-  return Colors[theme];
+  let accent: ThemeAccent = 'rose';
+  try {
+    const player = usePlayer();
+    if (player && player.themeAccent) {
+      accent = player.themeAccent;
+    }
+  } catch (e) {
+    // Fall back to rose during early loading or when used outside Provider
+  }
+
+  const palette = ACCENT_PALETTES[accent] || ACCENT_PALETTES.rose;
+  return palette[systemTheme];
 }

@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { usePlayer, Track, LyricLine } from '@/context/player-context';
+import Svg, { Path, Line } from 'react-native-svg';
+import { usePlayer, Track } from '@/context/player-context';
 import { ThemedText } from './themed-text';
 import { Icons } from './icons';
 import { useTheme } from '@/hooks/use-theme';
@@ -25,7 +26,7 @@ interface PlayerViewProps {
   onClose: () => void;
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const { 
@@ -51,8 +52,6 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-
-
   // Dialog & panel states
   const [showQueue, setShowQueue] = useState(false);
   const [showSleepTimer, setShowSleepTimer] = useState(false);
@@ -61,12 +60,51 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   // Custom slider width layout tracker
   const [progressBarWidth, setProgressBarWidth] = useState(0);
 
-  // Synced lyrics refs & scrolling
-  const lyricsScrollViewRef = useRef<ScrollView>(null);
-  const [activeLyricIndex, setActiveLyricIndex] = useState(-1);
-
   // Sleep timer interval ref
   const sleepTimerRef = useRef<any>(null);
+
+  // 60fps Visual position and Wave phase states
+  const [visualPosition, setVisualPosition] = useState(position);
+  const [wavePhase, setWavePhase] = useState(0);
+  const lastTimeRef = useRef<number>(Date.now());
+  const animationRef = useRef<number | null>(null);
+
+  // Sync visual position whenever true audio player position updates
+  useEffect(() => {
+    setVisualPosition(position);
+    lastTimeRef.current = Date.now();
+  }, [position]);
+
+  // Buttery-smooth 60fps local animation ticking loop when playing
+  useEffect(() => {
+    if (isPlaying) {
+      const tick = () => {
+        const now = Date.now();
+        const delta = (now - lastTimeRef.current) / 1000;
+        lastTimeRef.current = now;
+        
+        setVisualPosition(prev => {
+          const next = prev + delta;
+          return next > duration ? duration : next;
+        });
+        
+        setWavePhase(prev => prev + 0.15); // Horizontally flows the wave at 60fps
+        animationRef.current = requestAnimationFrame(tick);
+      };
+      lastTimeRef.current = Date.now();
+      animationRef.current = requestAnimationFrame(tick);
+    } else {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+    }
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isPlaying, duration]);
 
   // Track the sleep timer ticking down
   useEffect(() => {
@@ -85,31 +123,6 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
       if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
     };
   }, [sleepTimeRemaining, isPlaying]);
-
-  // Determine active lyric index
-  useEffect(() => {
-    if (!currentTrack || !currentTrack.lyrics) return;
-    
-    let activeIndex = -1;
-    for (let i = 0; i < currentTrack.lyrics.length; i++) {
-      if (position >= currentTrack.lyrics[i].time) {
-        activeIndex = i;
-      } else {
-        break;
-      }
-    }
-    setActiveLyricIndex(activeIndex);
-  }, [position, currentTrack]);
-
-  // Auto scroll active lyric line into center
-  useEffect(() => {
-    if (activeLyricIndex !== -1 && lyricsScrollViewRef.current) {
-      lyricsScrollViewRef.current.scrollTo({
-        y: Math.max(0, activeLyricIndex * 58 - 140),
-        animated: true,
-      });
-    }
-  }, [activeLyricIndex]);
 
   if (!currentTrack) return null;
 
@@ -131,222 +144,177 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     }
   };
 
+  // Premium smooth SVG Sine Wave Path Generator with Phase-shift
+  const generateWavePath = (width: number, phase: number) => {
+    if (width <= 0) return '';
+    let path = 'M 0 10';
+    const period = 14; // wave frequency
+    const amplitude = 3.5; // wave height
+    const step = 2; // draw segment every 2 pixels for continuous curves
+    
+    for (let x = 0; x <= width; x += step) {
+      const angle = (x / period) * Math.PI * 2 - phase;
+      const y = 10 + Math.sin(angle) * amplitude;
+      path += ` L ${x} ${y}`;
+    }
+    return path;
+  };
+
   const startSleepTimer = (minutes: number) => {
     setSleepTimeRemaining(minutes * 60);
     setShowSleepTimer(false);
   };
 
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: `Listening to "${currentTrack.title}" by ${currentTrack.artist} on Samaa Nasheed App. Join me!`,
-      });
-    } catch (e) {
-      console.log(e);
-    }
-  };
+  const playedPercent = duration > 0 ? Math.max(0, Math.min(visualPosition / duration, 1)) : 0;
+  const currentThumbX = playedPercent * progressBarWidth;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.playerBackground || '#FFF0EE' }]}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.playerBackground || '#2C2120' }]}>
         
         {/* TOP CONTROLS */}
         <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
-          <Pressable onPress={onClose} style={styles.headerBtn}>
-            <Icons.ArrowLeft size={24} color={theme.text} />
+          <Pressable onPress={onClose} style={[styles.headerBtnSquare, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+            <Icons.ChevronDown size={24} color="#FFFFFF" />
           </Pressable>
           <View style={styles.headerTitleContainer}>
             <ThemedText style={styles.headerTitle}>Now Playing</ThemedText>
             {sleepTimeRemaining !== null && (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.sleepTimerCounter}>
+              <ThemedText type="small" style={styles.sleepTimerCounter}>
                 Sleep: {formatTime(sleepTimeRemaining)}
               </ThemedText>
             )}
           </View>
-          <Pressable onPress={handleShare} style={styles.headerBtn}>
-            <Icons.Share size={24} color={theme.text} />
-          </Pressable>
+          
+          <View style={{ flexDirection: 'row', gap: Spacing.two }}>
+            <Pressable 
+              onPress={() => setShowSleepTimer(true)} 
+              style={[
+                styles.headerBtnSquare, 
+                { backgroundColor: 'rgba(255,255,255,0.06)' },
+                sleepTimeRemaining !== null && { borderColor: theme.primary, borderWidth: 1 }
+              ]}
+            >
+              <Icons.SleepTimer size={20} color={sleepTimeRemaining !== null ? theme.primary : '#FFFFFF'} />
+            </Pressable>
+            
+            <Pressable onPress={() => setShowQueue(true)} style={[styles.headerBtnSquare, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+              <Icons.Queue size={20} color="#FFFFFF" />
+            </Pressable>
+          </View>
         </View>
 
-        {/* LYRICS & COVER ART VIEWPORT */}
-        <View style={styles.lyricsContainer}>
-          <ScrollView
-            ref={lyricsScrollViewRef}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.lyricsContent}
-          >
-            {currentTrack.lyrics && currentTrack.lyrics.length > 0 ? (
-              currentTrack.lyrics.map((line, index) => {
-                const isActive = index === activeLyricIndex;
-                return (
-                  <Pressable
-                    key={index}
-                    onPress={() => seekTo(line.time)}
-                    style={[
-                      styles.lyricLineContainer,
-                      isActive && styles.lyricLineActive
-                    ]}
-                  >
-                    <ThemedText
-                      style={[
-                        styles.lyricText,
-                        { 
-                          color: isActive ? (theme.primary || '#8F302A') : theme.textSecondary,
-                          fontWeight: isActive ? '800' : '500',
-                          fontSize: isActive ? 22 : 17,
-                          textAlign: 'center',
-                        }
-                      ]}
-                    >
-                      {line.text}
-                    </ThemedText>
-                    {line.translation && (
-                      <ThemedText
-                        style={[
-                          styles.lyricTranslationText,
-                          {
-                            color: isActive ? theme.text : `${theme.textSecondary}80`,
-                            fontSize: isActive ? 15 : 12,
-                            textAlign: 'center',
-                          }
-                        ]}
-                      >
-                        {line.translation}
-                      </ThemedText>
-                    )}
-                  </Pressable>
-                );
-              })
-            ) : (
-              <View style={styles.noLyricsContainer}>
-                <Image 
-                  source={{ uri: currentTrack.coverUrl }} 
-                  style={styles.lyricsCoverArt} 
-                />
-                <ThemedText themeColor="textSecondary" style={styles.noLyricsText}>
-                  Lyrics not available for this track.
-                </ThemedText>
-              </View>
-            )}
-          </ScrollView>
+        {/* CENTER VIEWPORT: GORGEOUS CENTERED ALBUM ART */}
+        <View style={styles.centerArtContainer}>
+          <View style={[styles.artWrapper, { shadowColor: theme.primary }]}>
+            <Image 
+              source={{ uri: currentTrack.coverUrl }} 
+              style={styles.albumArt} 
+              transition={300}
+            />
+          </View>
         </View>
 
         {/* METADATA BLOCK */}
         <View style={styles.metaBlock}>
-          <View style={styles.metaInfo}>
-            <ThemedText style={styles.trackTitle}>{currentTrack.title}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.artistName}>
-              {currentTrack.artist} • {currentTrack.album}
-            </ThemedText>
-          </View>
+          <ThemedText style={styles.trackTitle} numberOfLines={1}>{currentTrack.title}</ThemedText>
+          <ThemedText style={styles.artistName} numberOfLines={1}>{currentTrack.artist}</ThemedText>
         </View>
 
-        {/* CUSTOM SEEK BAR */}
+        {/* PREMIUM SVG WAVY SEEK BAR */}
         <View style={styles.progressContainer}>
           <Pressable 
             onPress={handleProgressBarTouch}
             onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
             style={styles.progressBarTrackWrapper}
           >
-            <View style={[styles.progressBarBackground, { backgroundColor: theme.backgroundElement }]} />
-            <View 
-              style={[
-                styles.progressBarFill, 
-                { 
-                  backgroundColor: theme.primary || '#8F302A', 
-                  width: `${duration > 0 ? (position / duration) * 100 : 0}%` 
-                }
-              ]} 
-            />
+            {progressBarWidth > 0 && (
+              <Svg height="20" width={progressBarWidth} style={styles.waveSvg}>
+                {/* Active Played Wavy Path */}
+                <Path
+                  d={generateWavePath(currentThumbX, wavePhase)}
+                  fill="none"
+                  stroke={theme.primary}
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                />
+                {/* Inactive Remaining Flat Line */}
+                <Line
+                  x1={currentThumbX}
+                  y1="10"
+                  x2={progressBarWidth}
+                  y2="10"
+                  stroke="rgba(255,255,255,0.12)"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                />
+              </Svg>
+            )}
+            
+            {/* Slider Thumb Circular Dot */}
             <View 
               style={[
                 styles.progressBarThumb, 
                 { 
-                  backgroundColor: theme.primary || '#8F302A',
-                  left: `${duration > 0 ? (position / duration) * 100 : 0}%`,
-                  transform: [{ translateX: -7 }]
+                  backgroundColor: '#FFFFFF',
+                  left: currentThumbX,
+                  transform: [{ translateX: -7 }, { translateY: -7 }]
                 }
               ]} 
             />
           </Pressable>
           
           <View style={styles.timeLabelsRow}>
-            <ThemedText type="small" themeColor="textSecondary">{formatTime(position)}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">{formatTime(duration)}</ThemedText>
+            <ThemedText type="small" style={styles.timeLabel}>{formatTime(visualPosition)}</ThemedText>
+            <ThemedText type="small" style={styles.timeLabel}>{formatTime(duration)}</ThemedText>
           </View>
         </View>
 
-        {/* PLAYER CONTROLS */}
+        {/* BOTTOM CONTROLS ROW */}
         <View style={styles.controlsRow}>
-          <Pressable 
-            onPress={() => toggleLike(currentTrack.id)} 
-            style={[styles.smallControlBtn, isLiked && styles.activeControlBtn]}
-          >
-            {isLiked ? (
-              <Icons.Heart size={26} color="#E03B3B" fill="#E03B3B" />
-            ) : (
-              <Icons.Heart size={26} color={theme.textSecondary} />
-            )}
-          </Pressable>
-
-          <Pressable onPress={prevTrack} style={styles.normalControlBtn}>
-            <Icons.SkipBack size={32} color={theme.text} />
+          <Pressable onPress={prevTrack} style={[styles.controlBtnCircular, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+            <Icons.SkipBack size={24} color="#FFFFFF" />
           </Pressable>
 
           <Pressable 
             onPress={togglePlay} 
             disabled={isBuffering}
-            style={[
-              styles.playPauseBtn, 
-              { backgroundColor: theme.backgroundElement } // Screenshot 3 light background
+            style={({ pressed }) => [
+              styles.playPauseBtnSquare, 
+              { backgroundColor: theme.accentContainer || '#FFB4A9' },
+              pressed && { transform: [{ scale: 0.92 }] }
             ]}
           >
             {isBuffering ? (
-              <ActivityIndicator size="large" color={theme.text} />
+              <ActivityIndicator size="large" color={theme.primary} />
             ) : isPlaying ? (
-              <Icons.Pause size={38} color={theme.text} />
+              <Icons.Pause size={32} color={theme.onPrimary || '#680005'} />
             ) : (
-              <Icons.Play size={38} style={{ marginLeft: 4 }} color={theme.text} />
+              <Icons.Play size={32} style={{ marginLeft: 3 }} color={theme.onPrimary || '#680005'} />
             )}
           </Pressable>
 
-          <Pressable onPress={nextTrack} style={styles.normalControlBtn}>
-            <Icons.SkipForward size={32} color={theme.text} />
-          </Pressable>
-
-          <Pressable 
-            onPress={toggleRepeat} 
-            style={[styles.smallControlBtn, isRepeat && styles.activeControlBtn]}
-          >
-            <Icons.Repeat size={24} color={isRepeat ? (theme.primary || '#8F302A') : theme.textSecondary} />
+          <Pressable onPress={nextTrack} style={[styles.controlBtnCircular, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+            <Icons.SkipForward size={24} color="#FFFFFF" />
           </Pressable>
         </View>
 
-        {/* UTILITY FOOTER */}
-        <View style={styles.footerRow}>
-          <Pressable 
-            onPress={() => setShowQueue(!showQueue)} 
-            style={styles.footerIcon}
-          >
-            <Icons.Queue size={22} color={showQueue ? (theme.primary || '#8F302A') : theme.textSecondary} />
+        {/* CAPSULE UTILITY FOOTER */}
+        <View style={[styles.footerCapsule, { backgroundColor: 'rgba(255,255,255,0.04)' }]}>
+          <Pressable onPress={toggleShuffle} style={styles.footerIconBtn}>
+            <Icons.Shuffle size={22} color={isShuffle ? theme.primary : 'rgba(255,255,255,0.5)'} />
           </Pressable>
-          <Pressable onPress={() => {}} style={styles.footerIcon}>
-            <Icons.Lyrics size={22} color={theme.textSecondary} />
+          
+          <Pressable onPress={toggleRepeat} style={styles.footerIconBtn}>
+            <Icons.Repeat size={22} color={isRepeat ? theme.primary : 'rgba(255,255,255,0.5)'} />
           </Pressable>
-          <Pressable 
-            onPress={() => setShowSleepTimer(true)} 
-            style={styles.footerIcon}
-          >
-            <Icons.SleepTimer size={22} color={sleepTimeRemaining !== null ? (theme.primary || '#8F302A') : theme.textSecondary} />
-          </Pressable>
-          <Pressable 
-            onPress={toggleShuffle} 
-            style={styles.footerIcon}
-          >
-            <Icons.Shuffle size={22} color={isShuffle ? (theme.primary || '#8F302A') : theme.textSecondary} />
-          </Pressable>
-          <Pressable onPress={() => {}} style={styles.footerIcon}>
-            <Icons.More size={22} color={theme.textSecondary} />
+          
+          <Pressable onPress={() => toggleLike(currentTrack.id)} style={styles.footerIconBtn}>
+            {isLiked ? (
+              <Icons.Heart size={22} color="#E03B3B" fill="#E03B3B" />
+            ) : (
+              <Icons.Heart size={22} color="rgba(255,255,255,0.5)" />
+            )}
           </Pressable>
         </View>
 
@@ -358,7 +326,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
                 <View style={styles.sheetHeader}>
                   <ThemedText style={styles.sheetTitle}>Playback Queue</ThemedText>
                   <Pressable onPress={() => setShowQueue(false)}>
-                    <ThemedText type="small" style={{ color: theme.primary }}>Close</ThemedText>
+                    <ThemedText type="small" style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
                   </Pressable>
                 </View>
                 <ScrollView style={{ flex: 1 }}>
@@ -443,17 +411,20 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    justifyContent: 'space-between',
   },
   header: {
-    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
   },
-  headerBtn: {
-    padding: Spacing.two,
-    borderRadius: 20,
+  headerBtnSquare: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitleContainer: {
     alignItems: 'center',
@@ -461,143 +432,128 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontWeight: '700',
     fontSize: 16,
+    color: '#FFFFFF',
   },
   sleepTimerCounter: {
     fontSize: 11,
-    marginTop: 1,
+    marginTop: 2,
     fontWeight: '700',
+    color: 'rgba(255,255,255,0.7)',
   },
-  lyricsContainer: {
-    flex: 1,
+  centerArtContainer: {
+    flex: 1.2,
     justifyContent: 'center',
-    marginVertical: Spacing.two,
-  },
-  lyricsContent: {
-    paddingVertical: 140, // Centering margins
-    paddingHorizontal: Spacing.four,
-  },
-  lyricLineContainer: {
-    paddingVertical: Spacing.two,
-    marginVertical: Spacing.one,
-    borderRadius: 12,
     alignItems: 'center',
+    marginVertical: Spacing.three,
   },
-  lyricLineActive: {
-    transform: [{ scale: 1.04 }],
+  artWrapper: {
+    borderRadius: 36,
+    elevation: 20,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
   },
-  lyricText: {
-    lineHeight: 32,
-  },
-  lyricTranslationText: {
-    marginTop: 6,
-    fontWeight: '500',
-  },
-  noLyricsContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80,
-  },
-  lyricsCoverArt: {
-    width: 200,
-    height: 200,
-    borderRadius: 16,
-    marginBottom: Spacing.four,
-  },
-  noLyricsText: {
-    fontSize: 15,
-    textAlign: 'center',
+  albumArt: {
+    width: SCREEN_WIDTH * 0.78,
+    height: SCREEN_WIDTH * 0.78,
+    maxWidth: 310,
+    maxHeight: 310,
+    borderRadius: 36,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   metaBlock: {
-    paddingHorizontal: Spacing.four,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.five,
     marginBottom: Spacing.three,
   },
-  metaInfo: {
-    alignItems: 'center',
-  },
   trackTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
     textAlign: 'center',
+    color: '#FFFFFF',
   },
   artistName: {
     fontSize: 15,
-    marginTop: 6,
-    fontWeight: '600',
+    marginTop: Spacing.one,
     textAlign: 'center',
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '600',
   },
   progressContainer: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.five,
     marginBottom: Spacing.three,
   },
   progressBarTrackWrapper: {
     height: 20,
     justifyContent: 'center',
     position: 'relative',
-  },
-  progressBarBackground: {
-    height: 6,
-    borderRadius: 3,
     width: '100%',
   },
-  progressBarFill: {
-    height: 6,
-    borderRadius: 3,
+  waveSvg: {
     position: 'absolute',
     left: 0,
+    top: 0,
   },
   progressBarThumb: {
     width: 14,
     height: 14,
     borderRadius: 7,
     position: 'absolute',
-    top: 3,
+    top: '50%',
   },
   timeLabelsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: Spacing.one,
-    paddingHorizontal: Spacing.half,
+  },
+  timeLabel: {
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '600',
+    fontSize: 12,
   },
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.four,
+    justifyContent: 'center',
+    gap: Spacing.four,
+    marginBottom: Spacing.three,
   },
-  smallControlBtn: {
-    padding: Spacing.two,
-    borderRadius: 24,
-  },
-  activeControlBtn: {
-    transform: [{ scale: 1.05 }],
-  },
-  normalControlBtn: {
-    padding: Spacing.three,
-    borderRadius: 28,
-  },
-  playPauseBtn: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+  controlBtnCircular: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
   },
-  footerRow: {
+  playPauseBtnSquare: {
+    width: 80,
+    height: 80,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+  },
+  footerCapsule: {
+    width: '90%',
+    height: 64,
+    borderRadius: 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Platform.OS === 'ios' ? 10 : Spacing.three,
-    borderTopWidth: 0,
+    paddingHorizontal: Spacing.five,
+    alignSelf: 'center',
+    marginBottom: Platform.OS === 'ios' ? 12 : Spacing.four,
   },
-  footerIcon: {
-    padding: Spacing.two,
+  footerIconBtn: {
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,
@@ -617,7 +573,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
     paddingBottom: Spacing.two,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   sheetTitle: {
     fontWeight: '800',

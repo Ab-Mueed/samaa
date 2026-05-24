@@ -1,11 +1,9 @@
 import { Tabs } from 'expo-router';
-import { useColorScheme } from 'react-native';
-import { Colors } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { Icons } from './icons';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const colors = useTheme();
 
   return (
     <Tabs
@@ -35,51 +33,63 @@ export default function AppTabs() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color }) => (
             <Icons.Home color={color} size={24} />
           ),
         }}
       />
       <Tabs.Screen
-        name="songs"
+        name="search"
         options={{
-          title: 'Songs',
-          tabBarIcon: ({ color, focused }) => (
-            <Icons.Songs color={color} size={24} />
+          title: 'Search',
+          tabBarIcon: ({ color }) => (
+            <Icons.Search color={color} size={24} />
           ),
         }}
       />
       <Tabs.Screen
-        name="artists"
+        name="library"
         options={{
-          title: 'Artists',
-          tabBarIcon: ({ color, focused }) => (
-            <Icons.Artists color={color} size={24} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="albums"
-        options={{
-          title: 'Albums',
-          tabBarIcon: ({ color, focused }) => (
-            <Icons.Albums color={color} size={24} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="playlists"
-        options={{
-          title: 'Playlists',
-          tabBarIcon: ({ color, focused }) => (
+          title: 'Library',
+          tabBarIcon: ({ color }) => (
             <Icons.Playlists color={color} size={24} />
           ),
         }}
       />
       
-      {/* Hide the dynamic artist detail route from bottom tabs listing */}
+      {/* Hide auxiliary/legacy routes from bottom tabs listing */}
+      <Tabs.Screen
+        name="songs"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="artists"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="artists/[id]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="albums"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="playlists"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="explore"
         options={{
           href: null,
         }}

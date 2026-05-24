@@ -1,0 +1,485 @@
+import React, { useState } from 'react';
+import { 
+  View, 
+  StyleSheet, 
+  ScrollView, 
+  Pressable, 
+  Modal, 
+  TextInput,
+  Dimensions,
+  SafeAreaView
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import { usePlayer, Track } from '@/context/player-context';
+import { useTheme } from '@/hooks/use-theme';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { Icons } from '@/components/icons';
+import { Spacing } from '@/constants/theme';
+
+interface CustomPlaylist {
+  id: string;
+  name: string;
+  tracks: Track[];
+}
+
+export default function LibraryScreen() {
+  const { tracks, likes, history, playTrack, playAll } = usePlayer();
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  const [playlists, setPlaylists] = useState<CustomPlaylist[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [playlistName, setPlaylistName] = useState('');
+  const [showLikedSongsModal, setShowLikedSongsModal] = useState(false);
+
+  // Extract liked tracks
+  const likedTracks = tracks.filter(t => likes.includes(t.id));
+  
+  // Extract history tracks
+  const historyTracks = history.map(id => tracks.find(t => t.id === id)).filter((t): t is Track => !!t);
+
+
+
+  const handleCreatePlaylist = () => {
+    if (playlistName.trim().length === 0) return;
+
+    // Create a new mock playlist with 2 random songs for demonstration
+    const randomTracks = [...tracks].sort(() => Math.random() - 0.5).slice(0, 2);
+
+    const newPlaylist: CustomPlaylist = {
+      id: Date.now().toString(),
+      name: playlistName,
+      tracks: randomTracks
+    };
+
+    setPlaylists([...playlists, newPlaylist]);
+    setPlaylistName('');
+    setShowCreateModal(false);
+  };
+
+  const playPlaylist = (trackList: Track[]) => {
+    if (trackList.length > 0) {
+      playAll(trackList, 0);
+    }
+  };
+
+
+
+  return (
+    <ThemedView style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
+          <ThemedText style={styles.headerTitle}>Music Library</ThemedText>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          
+          {/* PLAYLISTS SECTION */}
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={styles.sectionTitle}>Playlists</ThemedText>
+              <Pressable 
+                onPress={() => setShowCreateModal(true)} 
+                style={({ pressed }) => [styles.createPillBtn, { backgroundColor: theme.backgroundElement }, pressed && { opacity: 0.8 }]}
+              >
+                <Icons.AddPlaylist size={18} color={theme.primary} />
+                <ThemedText type="small" style={{ color: theme.primary, fontWeight: 'bold' }}>Create</ThemedText>
+              </Pressable>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playlistsScroll}>
+              {/* Liked Songs Playlist Card */}
+              <Pressable 
+                onPress={() => setShowLikedSongsModal(true)}
+                style={({ pressed }) => [
+                  styles.playlistCard, 
+                  { backgroundColor: theme.backgroundElement }, 
+                  pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }
+                ]}
+              >
+                <View style={[styles.likedSongsIconContainer, { backgroundColor: theme.primary }]}>
+                  <Icons.Heart size={26} color="#FFFFFF" fill="#FFFFFF" />
+                </View>
+                <ThemedText style={styles.playlistName} numberOfLines={1}>Liked Songs</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">{likedTracks.length} items</ThemedText>
+              </Pressable>
+
+              {/* Custom Playlists */}
+              {playlists.map((playlist) => (
+                <Pressable 
+                  key={playlist.id}
+                  onPress={() => playPlaylist(playlist.tracks)}
+                  style={({ pressed }) => [styles.playlistCard, { backgroundColor: theme.backgroundElement }, pressed && { opacity: 0.8 }]}
+                >
+                  {playlist.tracks.length > 0 ? (
+                    <Image source={{ uri: playlist.tracks[0].coverUrl }} style={styles.playlistArt} />
+                  ) : (
+                    <View style={[styles.likedSongsIconContainer, { backgroundColor: theme.outline }]}>
+                      <Icons.Songs size={24} color="#FFFFFF" />
+                    </View>
+                  )}
+                  <ThemedText style={styles.playlistName} numberOfLines={1}>{playlist.name}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{playlist.tracks.length} items</ThemedText>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* HISTORY SECTION */}
+          {historyTracks.length > 0 && (
+            <View style={[styles.sectionContainer, { marginTop: Spacing.four }]}>
+              <ThemedText style={styles.sectionTitle}>Recently Played</ThemedText>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyScroll}>
+                {historyTracks.map((track, i) => (
+                  <Pressable
+                    key={`${track.id}-${i}`}
+                    onPress={() => playTrack(track)}
+                    style={({ pressed }) => [styles.historyCard, pressed && { opacity: 0.8 }]}
+                  >
+                    <Image source={{ uri: track.coverUrl }} style={styles.historyArt} />
+                    <ThemedText style={styles.historyTitle} numberOfLines={1}>{track.title}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{track.artist}</ThemedText>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* FAVORITE TRACKS SECTION */}
+          <View style={[styles.sectionContainer, { marginTop: Spacing.four }]}>
+            <ThemedText style={styles.sectionTitle}>Favorites</ThemedText>
+            {likedTracks.length > 0 ? (
+              <View style={[styles.favoritesList, { backgroundColor: theme.backgroundElement }]}>
+                {likedTracks.map((track) => (
+                  <Pressable
+                    key={track.id}
+                    onPress={() => playTrack(track)}
+                    style={({ pressed }) => [styles.favoriteItem, pressed && { opacity: 0.7 }]}
+                  >
+                    <Image source={{ uri: track.coverUrl }} style={styles.favoriteArt} />
+                    <View style={{ flex: 1 }}>
+                      <ThemedText style={{ fontWeight: 'bold', fontSize: 15 }} numberOfLines={1}>
+                        {track.title}
+                      </ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                        {track.artist}
+                      </ThemedText>
+                    </View>
+                    <Icons.Play size={18} color={theme.primary} />
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.emptyBox, { backgroundColor: theme.backgroundElement }]}>
+                <Icons.Heart size={26} color={theme.textSecondary} />
+                <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: Spacing.one, textAlign: 'center' }}>
+                  No liked Nasheeds yet. Tap the heart on songs to add them!
+                </ThemedText>
+              </View>
+            )}
+          </View>
+
+
+
+          {/* Padding for bottom player */}
+          <View style={{ height: 160 }} />
+        </ScrollView>
+
+        {/* DIALOG POPUP: LIKED SONGS VIEW */}
+        {showLikedSongsModal && (
+          <Modal 
+            visible={true} 
+            transparent={true} 
+            animationType="slide" 
+            onRequestClose={() => setShowLikedSongsModal(false)}
+          >
+            <Pressable onPress={() => setShowLikedSongsModal(false)} style={[styles.modalOverlay, { justifyContent: 'flex-end', alignItems: 'stretch' }]}>
+              <View style={[styles.likedSongsSheet, { backgroundColor: theme.background }]}>
+                <View style={styles.sheetHeader}>
+                  <ThemedText style={styles.sheetTitle}>Liked Nasheeds</ThemedText>
+                  <Pressable onPress={() => setShowLikedSongsModal(false)} style={styles.closeTextBtn}>
+                    <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
+                  </Pressable>
+                </View>
+                
+                <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                  {likedTracks.length > 0 ? (
+                    likedTracks.map((track) => (
+                      <Pressable
+                        key={track.id}
+                        onPress={() => {
+                          playTrack(track);
+                          setShowLikedSongsModal(false);
+                        }}
+                        style={({ pressed }) => [
+                          styles.trackListItem,
+                          pressed && { backgroundColor: theme.backgroundSelected || 'rgba(0,0,0,0.04)' }
+                        ]}
+                      >
+                        <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
+                        <View style={styles.trackListMeta}>
+                          <ThemedText style={styles.trackListName}>{track.title}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">{track.artist}</ThemedText>
+                        </View>
+                        <Icons.Play size={18} color={theme.primary} />
+                      </Pressable>
+                    ))
+                  ) : (
+                    <ThemedText themeColor="textSecondary" style={styles.emptyHistoryText}>
+                      No liked Nasheeds yet. Tap the heart on songs to add them!
+                    </ThemedText>
+                  )}
+                </ScrollView>
+              </View>
+            </Pressable>
+          </Modal>
+        )}
+
+        {/* DIALOG POPUP: CREATE PLAYLIST */}
+        {showCreateModal && (
+          <Modal visible={true} transparent={true} animationType="fade" onRequestClose={() => setShowCreateModal(false)}>
+            <Pressable onPress={() => setShowCreateModal(false)} style={styles.modalOverlay}>
+              <View style={[styles.createDialog, { backgroundColor: theme.backgroundElement }]}>
+                <ThemedText style={styles.dialogTitle}>Create Playlist</ThemedText>
+                
+                <TextInput
+                  placeholder="Enter playlist name..."
+                  placeholderTextColor={theme.textSecondary}
+                  value={playlistName}
+                  onChangeText={setPlaylistName}
+                  autoFocus={true}
+                  style={[styles.dialogInput, { color: theme.text, borderBottomColor: theme.outline }]}
+                />
+
+                <View style={styles.dialogButtonsRow}>
+                  <Pressable onPress={() => setShowCreateModal(false)} style={styles.dialogBtn}>
+                    <ThemedText themeColor="textSecondary">Cancel</ThemedText>
+                  </Pressable>
+                  <Pressable onPress={handleCreatePlaylist} style={styles.dialogBtn}>
+                    <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Create</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            </Pressable>
+          </Modal>
+        )}
+
+      </SafeAreaView>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.two,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
+  },
+  sectionContainer: {
+    width: '100%',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.two,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: Spacing.two,
+  },
+  createPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    borderRadius: 20,
+  },
+  playlistsScroll: {
+    gap: Spacing.three,
+    paddingRight: Spacing.four,
+  },
+  playlistCard: {
+    width: 120,
+    padding: Spacing.two,
+    borderRadius: 20,
+  },
+  likedSongsIconContainer: {
+    width: 104,
+    height: 104,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playlistArt: {
+    width: 104,
+    height: 104,
+    borderRadius: 16,
+  },
+  playlistName: {
+    fontWeight: '700',
+    fontSize: 14,
+    marginTop: Spacing.one,
+  },
+  historyScroll: {
+    gap: Spacing.three,
+  },
+  historyCard: {
+    width: 100,
+  },
+  historyArt: {
+    width: 100,
+    height: 100,
+    borderRadius: 16,
+    marginBottom: Spacing.one,
+  },
+  historyTitle: {
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  favoritesList: {
+    borderRadius: 24,
+    padding: Spacing.two,
+    gap: Spacing.one,
+  },
+  favoriteItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.two,
+    borderRadius: 16,
+    gap: Spacing.two,
+  },
+  favoriteArt: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+  },
+  emptyBox: {
+    borderRadius: 24,
+    padding: Spacing.five,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  artistsScroll: {
+    gap: Spacing.three,
+  },
+  artistCard: {
+    width: 90,
+    alignItems: 'center',
+  },
+  artistArt: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: Spacing.one,
+  },
+  artistNameText: {
+    fontWeight: '700',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createDialog: {
+    width: Dimensions.get('window').width * 0.85,
+    borderRadius: 28,
+    padding: Spacing.four,
+    elevation: 24,
+  },
+  dialogTitle: {
+    fontWeight: '800',
+    fontSize: 18,
+    marginBottom: Spacing.three,
+    textAlign: 'center',
+  },
+  dialogInput: {
+    borderBottomWidth: 1.5,
+    paddingVertical: Spacing.one,
+    fontSize: 15,
+    marginBottom: Spacing.four,
+  },
+  dialogButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.four,
+  },
+  dialogBtn: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
+  },
+  likedSongsSheet: {
+    height: Dimensions.get('window').height * 0.65,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: Spacing.three,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.three,
+    paddingBottom: Spacing.two,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
+  },
+  sheetTitle: {
+    fontWeight: '800',
+    fontSize: 18,
+  },
+  closeTextBtn: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
+  },
+  trackListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    borderRadius: 12,
+    marginVertical: Spacing.one / 2,
+    gap: Spacing.two,
+  },
+  trackListCoverArt: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+  },
+  trackListMeta: {
+    flex: 1,
+  },
+  trackListName: {
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  emptyHistoryText: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 14,
+    paddingHorizontal: Spacing.four,
+  },
+});

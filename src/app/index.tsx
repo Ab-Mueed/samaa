@@ -16,19 +16,29 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing, MaxContentWidth } from '@/constants/theme';
+import { Spacing, MaxContentWidth, ThemeAccent, ACCENT_PALETTES } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const PRESET_THEMES: { id: ThemeAccent; name: string; color: string }[] = [
+  { id: 'rose', name: 'Samaa Rose', color: '#8F302A' },
+  { id: 'teal', name: 'Mint Teal', color: '#006A5C' },
+  { id: 'purple', name: 'Royal Purple', color: '#7E2A8F' },
+  { id: 'indigo', name: 'Indigo Ocean', color: '#005FAF' },
+  { id: 'slate', name: 'Charcoal Slate', color: '#4F5E70' },
+  { id: 'amber', name: 'Forest Amber', color: '#785A00' }
+];
+
 export default function HomeScreen() {
-  const { tracks, playTrack, history, likes, clearHistory } = usePlayer();
+  const { tracks, playTrack, history, likes, clearHistory, themeAccent, setThemeAccent } = usePlayer();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   // Filter tracks based on search query
   const filteredTracks = tracks.filter(t => 
@@ -79,7 +89,7 @@ export default function HomeScreen() {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
-            <Pressable onPress={() => setShowStatsModal(true)} style={styles.searchSettingsBtn}>
+            <Pressable onPress={() => setShowThemeModal(true)} style={styles.searchSettingsBtn}>
               <Icons.Settings size={20} color={theme.textSecondary} />
             </Pressable>
           </View>
@@ -289,6 +299,59 @@ export default function HomeScreen() {
   
                 <Pressable onPress={() => setShowStatsModal(false)} style={styles.statsCloseBtn}>
                   <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Awesome</ThemedText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Modal>
+        )}
+
+        {/* APPEARANCE / THEME SELECTOR MODAL */}
+        {showThemeModal && (
+          <Modal
+            visible={true}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowThemeModal(false)}
+          >
+            <Pressable onPress={() => setShowThemeModal(false)} style={styles.modalOverlay}>
+              <View style={[styles.themeDialog, { backgroundColor: theme.backgroundElement }]}>
+                <ThemedText style={styles.dialogTitle}>Appearance Settings</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.dialogSubtitle}>
+                  Select an accent color to customize your Material Design theme
+                </ThemedText>
+
+                <ScrollView style={styles.themeListContainer} showsVerticalScrollIndicator={false}>
+                  {PRESET_THEMES.map((item) => {
+                    const isSelected = themeAccent === item.id;
+                    return (
+                      <Pressable
+                        key={item.id}
+                        onPress={() => {
+                          setThemeAccent(item.id);
+                        }}
+                        style={[
+                          styles.themeOptionRow,
+                          isSelected && { backgroundColor: 'rgba(255,255,255,0.08)' }
+                        ]}
+                      >
+                        <View style={[styles.colorSwatch, { backgroundColor: item.color }]} />
+                        <ThemedText style={[
+                          styles.themeName,
+                          isSelected && { fontWeight: 'bold', color: theme.primary }
+                        ]}>
+                          {item.name}
+                        </ThemedText>
+                        {isSelected && <Icons.Checked size={18} color={theme.primary} />}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+
+                <Pressable 
+                  onPress={() => setShowThemeModal(false)} 
+                  style={[styles.dialogCloseBtn, { backgroundColor: theme.primary }]}
+                >
+                  <ThemedText style={{ color: '#FFFFFF', fontWeight: 'bold' }}>Apply Theme</ThemedText>
                 </Pressable>
               </View>
             </Pressable>
@@ -512,8 +575,65 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   statsCloseBtn: {
+    paddingVertical: Spacing.two,
     alignItems: 'center',
-    marginTop: Spacing.three,
-    paddingTop: Spacing.one,
+    borderRadius: 20,
+    marginTop: Spacing.two,
+  },
+  dialogTitle: {
+    fontWeight: '800',
+    fontSize: 18,
+    marginBottom: Spacing.three,
+    textAlign: 'center',
+  },
+  themeDialog: {
+    width: Dimensions.get('window').width * 0.85,
+    borderRadius: 28,
+    padding: Spacing.four,
+    elevation: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    alignSelf: 'center',
+  },
+  dialogSubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: Spacing.three,
+    lineHeight: 18,
+  },
+  themeListContainer: {
+    width: '100%',
+    maxHeight: 240,
+    marginBottom: Spacing.three,
+  },
+  themeOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    borderRadius: 12,
+    marginVertical: Spacing.one / 2,
+    gap: Spacing.two,
+  },
+  colorSwatch: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  themeName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  dialogCloseBtn: {
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
   },
 });
