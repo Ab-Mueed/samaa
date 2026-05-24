@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   ScrollView, 
@@ -9,8 +9,10 @@ import {
   Dimensions, 
   SafeAreaView,
   Platform,
-  ActivityIndicator
+  Animated,
+  Easing
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { usePlayer, Track } from '@/context/player-context';
@@ -43,6 +45,28 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Rotating loop for the custom starburst spinner
+  const spinAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isSwitchingMode) {
+      spinAnim.setValue(0);
+      Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+    }
+  }, [isSwitchingMode]);
+
+  const spin = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   // Clear search query when mode changes
   useEffect(() => {
@@ -290,10 +314,18 @@ export default function HomeScreen() {
         {isSwitchingMode && (
           <View style={styles.loadingSpinnerContainer}>
             <View style={[styles.loadingSpinnerCard, { backgroundColor: theme.backgroundElement }]}>
-              <ActivityIndicator size="large" color={theme.primary} />
-              <ThemedText style={[styles.loadingText, { color: theme.text, marginTop: Spacing.two }]}>
-                {activeMode === 'quran' ? "Loading Quran Audio API..." : "Loading Nasheeds Sandbox..."}
-              </ThemedText>
+              {/* Outer halo background circle */}
+              <View style={[styles.spinnerHalo, { backgroundColor: theme.primary + '20' }]}>
+                {/* Rotating custom starburst scallop SVG */}
+                <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                  <Svg width={44} height={44} viewBox="0 0 48 48">
+                    <Path 
+                      d="M24,4 C26.2,4 27.1,6.5 29.1,7.5 C31.1,8.5 33.6,8.2 35.1,9.9 C36.6,11.6 36.0,14.1 37.0,16.1 C38.0,18.1 40.5,19.3 40.5,21.5 C40.5,23.7 38.0,24.9 37.0,26.9 C36.0,28.9 36.6,31.4 35.1,33.1 C33.6,34.8 31.1,34.5 29.1,35.5 C27.1,36.5 26.2,39.0 24,39.0 C21.8,39.0 20.9,36.5 18.9,35.5 C16.9,34.5 14.4,34.8 12.9,33.1 C11.4,31.4 12.0,28.9 11.0,26.9 C10.0,24.9 7.5,23.7 7.5,21.5 C7.5,19.3 10.0,18.1 11.0,16.1 C12.0,14.1 11.4,11.6 12.9,9.9 C14.4,8.2 16.9,8.5 18.9,7.5 C20.9,6.5 21.8,4 24,4 Z" 
+                      fill={theme.primary} 
+                    />
+                  </Svg>
+                </Animated.View>
+              </View>
             </View>
           </View>
         )}
@@ -486,20 +518,23 @@ const styles = StyleSheet.create({
     zIndex: 2000,
   },
   loadingSpinnerCard: {
-    padding: Spacing.four,
+    width: 90,
+    height: 90,
     borderRadius: 24,
+    justifyContent: 'center',
     alignItems: 'center',
-    width: 260,
     elevation: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
   },
-  loadingText: {
-    fontSize: 14,
-    fontWeight: '700',
-    textAlign: 'center',
+  spinnerHalo: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,

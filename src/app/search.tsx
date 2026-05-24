@@ -38,7 +38,6 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
 
   const [query, setQuery] = useState('');
-  const [showSettings, setShowSettings] = useState(false);
 
   const [recentSearchesNasheed, setRecentSearchesNasheed] = useState<string[]>([
     'Hasbi Rabbi',
@@ -133,17 +132,7 @@ export default function SearchScreen() {
           )}
         </View>
         
-        {/* Settings Gear Button */}
-        <Pressable 
-          onPress={() => setShowSettings(true)}
-          style={({ pressed }) => [
-            styles.settingsBtn, 
-            { backgroundColor: theme.backgroundElement },
-            pressed && { opacity: 0.7 }
-          ]}
-        >
-          <Icons.Settings size={22} color={theme.text} />
-        </Pressable>
+
       </View>
 
       <ScrollView 
@@ -218,58 +207,7 @@ export default function SearchScreen() {
         <View style={{ height: 160 }} />
       </ScrollView>
 
-      {/* APPEARANCE / THEME SELECTOR MODAL */}
-      {showSettings && (
-        <Modal
-          visible={true}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowSettings(false)}
-        >
-          <Pressable onPress={() => setShowSettings(false)} style={styles.modalOverlay}>
-            <View style={[styles.themeDialog, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText style={styles.dialogTitle}>Appearance Settings</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.dialogSubtitle}>
-                Select an accent color to customize your Material Design theme
-              </ThemedText>
 
-              <ScrollView style={styles.themeListContainer} showsVerticalScrollIndicator={false}>
-                {PRESET_THEMES.map((item) => {
-                  const isSelected = themeAccent === item.id;
-                  return (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => {
-                        setThemeAccent(item.id);
-                      }}
-                      style={[
-                        styles.themeOptionRow,
-                        isSelected && { backgroundColor: 'rgba(255,255,255,0.08)' }
-                      ]}
-                    >
-                      <View style={[styles.colorSwatch, { backgroundColor: item.color }]} />
-                      <ThemedText style={[
-                        styles.themeName,
-                        isSelected && { fontWeight: 'bold', color: theme.primary }
-                      ]}>
-                        {item.name}
-                      </ThemedText>
-                      {isSelected && <Icons.Checked size={18} color={theme.primary} />}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              <Pressable 
-                onPress={() => setShowSettings(false)} 
-                style={[styles.dialogCloseBtn, { backgroundColor: theme.primary }]}
-              >
-                <ThemedText style={{ color: '#FFFFFF', fontWeight: 'bold' }}>Apply Theme</ThemedText>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Modal>
-      )}
     </ThemedView>
   );
 }

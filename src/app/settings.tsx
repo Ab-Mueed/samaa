@@ -180,13 +180,16 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   card: {
-    borderRadius: 24,
-    padding: Spacing.three,
+    borderRadius: 36, // Fully rounded capsule
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
+    justifyContent: 'center',
+    minHeight: 72,
   },
   cardSectionTitle: {
     fontSize: 16,
