@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     bottom: Platform.OS === 'web' ? 84 : BottomTabInset + 8, // Snug yet floating elegantly
     left: Spacing.three,
     right: Spacing.three,
-    borderRadius: 24, // Perfectly rounded all around!
+    borderRadius: 36, // Fully rounded capsule shape! (exactly half of height 72)
     borderWidth: 1.5, // Border outlines for unified Material You design
     zIndex: 900,
     elevation: 8,
@@ -125,6 +125,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
+    borderRadius: 36, // Keep touch highlights nested inside rounded capsule bounds
   },
   leftSection: {
     flex: 1,
