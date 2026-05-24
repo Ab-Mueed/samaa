@@ -33,7 +33,7 @@ import {
 
 export type IconProps = LucideProps & {
   size?: number;
-  color?: string;
+  color?: any;
 };
 
 export const Icons = {

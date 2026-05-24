@@ -1,18 +1,18 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, StyleSheet, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { usePlayer } from '@/context/player-context';
 import { ThemedText } from './themed-text';
 import { Icons } from './icons';
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing } from '@/constants/theme';
+import { Spacing, BottomTabInset } from '@/constants/theme';
 
 interface MiniPlayerProps {
   onPress: () => void;
 }
 
 export function MiniPlayer({ onPress }: MiniPlayerProps) {
-  const { currentTrack, isPlaying, togglePlay, nextTrack } = usePlayer();
+  const { currentTrack, isPlaying, isBuffering, togglePlay, nextTrack } = usePlayer();
   const theme = useTheme();
 
   if (!currentTrack) return null;
@@ -39,12 +39,15 @@ export function MiniPlayer({ onPress }: MiniPlayerProps) {
         <View style={styles.rightSection}>
           <Pressable 
             onPress={togglePlay} 
+            disabled={isBuffering}
             style={({ pressed }) => [
               styles.controlBtn,
               pressed && styles.pressed
             ]}
           >
-            {isPlaying ? (
+            {isBuffering ? (
+              <ActivityIndicator size="small" color={theme.text} />
+            ) : isPlaying ? (
               <Icons.Pause size={24} color={theme.text} />
             ) : (
               <Icons.Play size={24} color={theme.text} />
@@ -71,7 +74,7 @@ const styles = StyleSheet.create({
     height: 72,
     width: '100%',
     position: (Platform.OS === 'web' ? 'fixed' : 'absolute') as any,
-    bottom: Platform.OS === 'web' ? 76 : 0, // Snug above tab bars
+    bottom: Platform.OS === 'web' ? 76 : BottomTabInset, // Snug above tab bars
     left: 0,
     right: 0,
     borderTopWidth: 1,

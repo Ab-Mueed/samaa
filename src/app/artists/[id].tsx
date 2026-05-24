@@ -7,8 +7,10 @@ import {
   SafeAreaView, 
   Dimensions,
   Share,
-  Platform
+  Platform,
+  BackHandler
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { usePlayer, Track } from '@/context/player-context';
@@ -26,6 +28,21 @@ export default function ArtistDetailScreen() {
   const theme = useTheme();
   
   const { tracks, playTrack, playAll, likes, toggleLike } = usePlayer();
+  const insets = useSafeAreaInsets();
+
+  React.useEffect(() => {
+    const backAction = () => {
+      router.back();
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, []);
 
   // Decode the artist name from route param (fallback to Maher Zain)
   const artistName = id ? decodeURIComponent(id as string) : 'Maher Zain';
@@ -79,7 +96,7 @@ export default function ArtistDetailScreen() {
             <View style={styles.bannerOverlayFade} />
 
             {/* FLOATING ACTION KEYS */}
-            <View style={styles.bannerNavRow}>
+            <View style={[styles.bannerNavRow, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
               <Pressable 
                 onPress={() => router.back()} 
                 style={[styles.floatingCircleBtn, { backgroundColor: 'rgba(0,0,0,0.3)' }]}

@@ -16,6 +16,7 @@ import { Icons } from '@/components/icons';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type FilterType = 'all' | 'vocal' | 'liked';
 
@@ -23,6 +24,7 @@ export default function SongsScreen() {
   const { tracks, likes, playTrack, toggleLike, addToQueue } = usePlayer();
   const theme = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -67,7 +69,7 @@ export default function SongsScreen() {
       <SafeAreaView style={styles.safeArea}>
         
         {/* HEADER */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
           <ThemedText type="subtitle" style={styles.headerTitle}>All Nasheeds</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             {filteredTracks.length} spiritual tracks
@@ -180,56 +182,58 @@ export default function SongsScreen() {
         </ScrollView>
 
         {/* DIALOG OPTIONS DRAWER */}
-        <Modal visible={showOptionsModal} transparent={true} animationType="slide">
-          <Pressable onPress={() => setShowOptionsModal(false)} style={styles.modalOverlay}>
-            {selectedTrack && (
-              <View style={[styles.optionsSheet, { backgroundColor: theme.backgroundElement }]}>
-                <View style={styles.optionsHeader}>
-                  <Image source={{ uri: selectedTrack.coverUrl }} style={styles.optionsCover} />
-                  <View style={{ flex: 1 }}>
-                    <ThemedText style={{ fontWeight: '800', fontSize: 16 }}>{selectedTrack.title}</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">{selectedTrack.artist}</ThemedText>
+        {showOptionsModal && (
+          <Modal visible={true} transparent={true} animationType="slide" onRequestClose={() => setShowOptionsModal(false)}>
+            <Pressable onPress={() => setShowOptionsModal(false)} style={styles.modalOverlay}>
+              {selectedTrack && (
+                <View style={[styles.optionsSheet, { backgroundColor: theme.backgroundElement }]}>
+                  <View style={styles.optionsHeader}>
+                    <Image source={{ uri: selectedTrack.coverUrl }} style={styles.optionsCover} />
+                    <View style={{ flex: 1 }}>
+                      <ThemedText style={{ fontWeight: '800', fontSize: 16 }}>{selectedTrack.title}</ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">{selectedTrack.artist}</ThemedText>
+                    </View>
                   </View>
+  
+                  <Pressable onPress={handleAddToQueue} style={styles.optionRow}>
+                    <Icons.Queue size={22} color={theme.text} />
+                    <ThemedText style={styles.optionText}>Add to Queue</ThemedText>
+                  </Pressable>
+  
+                  <Pressable onPress={handleToggleLike} style={styles.optionRow}>
+                    {likes.includes(selectedTrack.id) ? (
+                      <>
+                        <Icons.Heart size={22} color="#E03B3B" fill="#E03B3B" />
+                        <ThemedText style={styles.optionText}>Remove from Favorites</ThemedText>
+                      </>
+                    ) : (
+                      <>
+                        <Icons.Heart size={22} color={theme.text} />
+                        <ThemedText style={styles.optionText}>Add to Favorites</ThemedText>
+                      </>
+                    )}
+                  </Pressable>
+  
+                  <Pressable 
+                    onPress={() => {
+                      setShowOptionsModal(false);
+                      // Navigate to dynamic artist detail!
+                      router.push(`/artists/1`); // Redirect to featured artist showcase
+                    }} 
+                    style={styles.optionRow}
+                  >
+                    <Icons.Artists size={22} color={theme.text} />
+                    <ThemedText style={styles.optionText}>View Artist Profile</ThemedText>
+                  </Pressable>
+  
+                  <Pressable onPress={() => setShowOptionsModal(false)} style={styles.closeOptionBtn}>
+                    <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
+                  </Pressable>
                 </View>
-
-                <Pressable onPress={handleAddToQueue} style={styles.optionRow}>
-                  <Icons.Queue size={22} color={theme.text} />
-                  <ThemedText style={styles.optionText}>Add to Queue</ThemedText>
-                </Pressable>
-
-                <Pressable onPress={handleToggleLike} style={styles.optionRow}>
-                  {likes.includes(selectedTrack.id) ? (
-                    <>
-                      <Icons.Heart size={22} color="#E03B3B" fill="#E03B3B" />
-                      <ThemedText style={styles.optionText}>Remove from Favorites</ThemedText>
-                    </>
-                  ) : (
-                    <>
-                      <Icons.Heart size={22} color={theme.text} />
-                      <ThemedText style={styles.optionText}>Add to Favorites</ThemedText>
-                    </>
-                  )}
-                </Pressable>
-
-                <Pressable 
-                  onPress={() => {
-                    setShowOptionsModal(false);
-                    // Navigate to dynamic artist detail!
-                    router.push(`/artists/1`); // Redirect to featured artist showcase
-                  }} 
-                  style={styles.optionRow}
-                >
-                  <Icons.Artists size={22} color={theme.text} />
-                  <ThemedText style={styles.optionText}>View Artist Profile</ThemedText>
-                </Pressable>
-
-                <Pressable onPress={() => setShowOptionsModal(false)} style={styles.closeOptionBtn}>
-                  <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
-                </Pressable>
-              </View>
-            )}
-          </Pressable>
-        </Modal>
+              )}
+            </Pressable>
+          </Modal>
+        )}
 
       </SafeAreaView>
     </ThemedView>

@@ -13,10 +13,12 @@ import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AlbumsScreen() {
   const { tracks, playAll } = usePlayer();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   // Create list of unique albums
   const albumsMap = new Map<string, { title: string; artist: string; cover: string; trackCount: number }>();
@@ -52,7 +54,7 @@ export default function AlbumsScreen() {
       <SafeAreaView style={styles.safeArea}>
         
         {/* HEADER */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
           <ThemedText type="subtitle" style={styles.headerTitle}>Spiritual Albums</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             Explore {albums.length} thematic vocal compilations

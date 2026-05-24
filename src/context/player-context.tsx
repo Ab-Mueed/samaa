@@ -23,6 +23,7 @@ export interface PlayerContextProps {
   tracks: Track[];
   currentTrack: Track | null;
   isPlaying: boolean;
+  isBuffering: boolean;
   position: number; // in seconds
   duration: number; // in seconds
   queue: Track[];
@@ -182,6 +183,7 @@ const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isBuffering, setIsBuffering] = useState<boolean>(false);
   const [position, setPosition] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [queue, setQueue] = useState<Track[]>(MOCK_TRACKS);
@@ -233,6 +235,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (webAudioRef.current && !webAudioRef.current.paused) {
         setPosition(Math.floor(webAudioRef.current.currentTime));
         setDuration(Math.floor(webAudioRef.current.duration) || 0);
+        setIsBuffering(false);
 
         if (webAudioRef.current.ended) {
           clearInterval(webTimerRef.current);
@@ -248,13 +251,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     webTimerRef.current = setInterval(() => {
       if (player) {
         // Read directly from the AudioPlayer instance properties
-        const currentPlaying = player.playing || player.isPlaying;
         const currentPos = player.currentTime || 0;
         const totalDuration = player.duration || 0;
+        const currentBuffering = player.isBuffering || false;
 
         setPosition(Math.floor(currentPos));
         setDuration(Math.floor(totalDuration));
-        setIsPlaying(currentPlaying);
+        setIsBuffering(currentBuffering);
 
         if (currentPos >= totalDuration && totalDuration > 0) {
           clearInterval(webTimerRef.current);
@@ -279,6 +282,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setPosition(0);
     setDuration(track.duration);
     setIsPlaying(true);
+    setIsBuffering(true);
 
     // Track index matching
     const qIndex = queue.findIndex(t => t.id === track.id);
@@ -303,10 +307,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const audio = new window.Audio(track.audioUrl);
         audio.play().then(() => {
           setIsPlaying(true);
+          setIsBuffering(false);
           startWebTimer();
         }).catch((err) => {
           console.log('Autoplay failed, waiting user interaction', err);
           setIsPlaying(true);
+          setIsBuffering(false);
           startWebTimer();
         });
         webAudioRef.current = audio;
@@ -331,6 +337,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Mock play timer for environments with no audio capability
   const mockPlayTimer = (trackDuration: number) => {
+    setIsBuffering(false);
     if (webTimerRef.current) clearInterval(webTimerRef.current);
     webTimerRef.current = setInterval(() => {
       setPosition(prev => {
@@ -347,6 +354,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const resumeAudio = () => {
     setIsPlaying(true);
     if (Platform.OS === 'web') {
+      setIsBuffering(false);
       if (webAudioRef.current) {
         webAudioRef.current.play().catch(e => console.log(e));
         startWebTimer();
@@ -355,6 +363,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     } else {
       if (nativePlayerRef.current) {
+        setIsBuffering(nativePlayerRef.current.isBuffering || false);
         nativePlayerRef.current.play();
         startNativeTimer(nativePlayerRef.current);
       } else if (currentTrack) {
@@ -365,6 +374,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const pauseAudio = () => {
     setIsPlaying(false);
+    setIsBuffering(false);
     if (Platform.OS === 'web') {
       if (webAudioRef.current) {
         webAudioRef.current.pause();
@@ -473,6 +483,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         tracks: MOCK_TRACKS,
         currentTrack,
         isPlaying,
+        isBuffering,
         position,
         duration,
         queue,

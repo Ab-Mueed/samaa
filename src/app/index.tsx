@@ -17,12 +17,14 @@ import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { tracks, playTrack, history, likes, clearHistory } = usePlayer();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -67,7 +69,7 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.safeArea}>
         
         {/* CAPSULE SEARCH BAR - SCREENSHOT 2 */}
-        <View style={styles.searchContainer}>
+        <View style={[styles.searchContainer, { paddingTop: Math.max(Spacing.two, insets.top) }]}>
           <View style={[styles.searchCapsule, { backgroundColor: theme.backgroundElement }]}>
             <Icons.Search size={20} color={theme.textSecondary} style={styles.searchIcon} />
             <TextInput
@@ -216,78 +218,82 @@ export default function HomeScreen() {
         </Pressable>
 
         {/* HISTORY POPUP MODAL */}
-        <Modal visible={showHistoryModal} transparent={true} animationType="slide">
-          <Pressable onPress={() => setShowHistoryModal(false)} style={styles.modalOverlay}>
-            <View style={[styles.historySheet, { backgroundColor: theme.background }]}>
-              <View style={styles.sheetHeader}>
-                <ThemedText style={styles.sheetTitle}>Listening History</ThemedText>
-                <View style={{ flexDirection: 'row', gap: Spacing.three }}>
-                  <Pressable onPress={clearHistory}>
-                    <ThemedText type="small" style={{ color: '#E03B3B' }}>Clear</ThemedText>
-                  </Pressable>
-                  <Pressable onPress={() => setShowHistoryModal(false)}>
-                    <ThemedText type="small" style={{ color: theme.primary }}>Close</ThemedText>
-                  </Pressable>
-                </View>
-              </View>
-              <ScrollView style={{ flex: 1 }}>
-                {historyTracks.length > 0 ? (
-                  historyTracks.map((track, i) => (
-                    <Pressable
-                      key={`${track.id}-${i}`}
-                      onPress={() => {
-                        playTrack(track);
-                        setShowHistoryModal(false);
-                      }}
-                      style={styles.trackListItem}
-                    >
-                      <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
-                      <View style={styles.trackListMeta}>
-                        <ThemedText style={styles.trackListName}>{track.title}</ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">{track.artist}</ThemedText>
-                      </View>
-                      <Icons.Play size={18} color={theme.textSecondary} />
+        {showHistoryModal && (
+          <Modal visible={true} transparent={true} animationType="slide" onRequestClose={() => setShowHistoryModal(false)}>
+            <Pressable onPress={() => setShowHistoryModal(false)} style={styles.modalOverlay}>
+              <View style={[styles.historySheet, { backgroundColor: theme.background }]}>
+                <View style={styles.sheetHeader}>
+                  <ThemedText style={styles.sheetTitle}>Listening History</ThemedText>
+                  <View style={{ flexDirection: 'row', gap: Spacing.three }}>
+                    <Pressable onPress={clearHistory}>
+                      <ThemedText type="small" style={{ color: '#E03B3B' }}>Clear</ThemedText>
                     </Pressable>
-                  ))
-                ) : (
-                  <ThemedText themeColor="textSecondary" style={styles.emptyHistoryText}>
-                    Your listening history is empty. Start playing Nasheeds!
-                  </ThemedText>
-                )}
-              </ScrollView>
-            </View>
-          </Pressable>
-        </Modal>
+                    <Pressable onPress={() => setShowHistoryModal(false)}>
+                      <ThemedText type="small" style={{ color: theme.primary }}>Close</ThemedText>
+                    </Pressable>
+                  </View>
+                </View>
+                <ScrollView style={{ flex: 1 }}>
+                  {historyTracks.length > 0 ? (
+                    historyTracks.map((track, i) => (
+                      <Pressable
+                        key={`${track.id}-${i}`}
+                        onPress={() => {
+                          playTrack(track);
+                          setShowHistoryModal(false);
+                        }}
+                        style={styles.trackListItem}
+                      >
+                        <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
+                        <View style={styles.trackListMeta}>
+                          <ThemedText style={styles.trackListName}>{track.title}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">{track.artist}</ThemedText>
+                        </View>
+                        <Icons.Play size={18} color={theme.textSecondary} />
+                      </Pressable>
+                    ))
+                  ) : (
+                    <ThemedText themeColor="textSecondary" style={styles.emptyHistoryText}>
+                      Your listening history is empty. Start playing Nasheeds!
+                    </ThemedText>
+                  )}
+                </ScrollView>
+              </View>
+            </Pressable>
+          </Modal>
+        )}
 
         {/* STATS ANALYTICS POPUP MODAL */}
-        <Modal visible={showStatsModal} transparent={true} animationType="fade">
-          <Pressable onPress={() => setShowStatsModal(false)} style={styles.modalOverlay}>
-            <View style={[styles.statsCard, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText style={styles.statsTitle}>Samaa Analytics</ThemedText>
-              
-              <View style={styles.statsRow}>
-                <ThemedText themeColor="textSecondary">Total Plays:</ThemedText>
-                <ThemedText style={styles.statsValue}>{history.length} tracks</ThemedText>
+        {showStatsModal && (
+          <Modal visible={true} transparent={true} animationType="fade" onRequestClose={() => setShowStatsModal(false)}>
+            <Pressable onPress={() => setShowStatsModal(false)} style={styles.modalOverlay}>
+              <View style={[styles.statsCard, { backgroundColor: theme.backgroundElement }]}>
+                <ThemedText style={styles.statsTitle}>Samaa Analytics</ThemedText>
+                
+                <View style={styles.statsRow}>
+                  <ThemedText themeColor="textSecondary">Total Plays:</ThemedText>
+                  <ThemedText style={styles.statsValue}>{history.length} tracks</ThemedText>
+                </View>
+                <View style={styles.statsRow}>
+                  <ThemedText themeColor="textSecondary">Liked Tracks:</ThemedText>
+                  <ThemedText style={styles.statsValue}>{likes.length} favorited</ThemedText>
+                </View>
+                <View style={styles.statsRow}>
+                  <ThemedText themeColor="textSecondary">Fav Artist:</ThemedText>
+                  <ThemedText style={styles.statsValue}>{getFavoriteArtist()}</ThemedText>
+                </View>
+                <View style={styles.statsRow}>
+                  <ThemedText themeColor="textSecondary">Genre Focus:</ThemedText>
+                  <ThemedText style={styles.statsValue}>Vocal-Only Spirtual</ThemedText>
+                </View>
+  
+                <Pressable onPress={() => setShowStatsModal(false)} style={styles.statsCloseBtn}>
+                  <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Awesome</ThemedText>
+                </Pressable>
               </View>
-              <View style={styles.statsRow}>
-                <ThemedText themeColor="textSecondary">Liked Tracks:</ThemedText>
-                <ThemedText style={styles.statsValue}>{likes.length} favorited</ThemedText>
-              </View>
-              <View style={styles.statsRow}>
-                <ThemedText themeColor="textSecondary">Fav Artist:</ThemedText>
-                <ThemedText style={styles.statsValue}>{getFavoriteArtist()}</ThemedText>
-              </View>
-              <View style={styles.statsRow}>
-                <ThemedText themeColor="textSecondary">Genre Focus:</ThemedText>
-                <ThemedText style={styles.statsValue}>Vocal-Only Spirtual</ThemedText>
-              </View>
-
-              <Pressable onPress={() => setShowStatsModal(false)} style={styles.statsCloseBtn}>
-                <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Awesome</ThemedText>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Modal>
+            </Pressable>
+          </Modal>
+        )}
 
       </SafeAreaView>
     </ThemedView>

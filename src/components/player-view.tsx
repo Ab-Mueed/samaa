@@ -9,8 +9,10 @@ import {
   Platform,
   Dimensions,
   Share,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { usePlayer, Track, LyricLine } from '@/context/player-context';
 import { ThemedText } from './themed-text';
@@ -29,6 +31,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const { 
     currentTrack, 
     isPlaying, 
+    isBuffering,
     position, 
     duration, 
     togglePlay, 
@@ -46,6 +49,9 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   } = usePlayer();
 
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
+
 
   // Dialog & panel states
   const [showQueue, setShowQueue] = useState(false);
@@ -141,11 +147,11 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.playerBackground || '#FFF0EE' }]}>
         
         {/* TOP CONTROLS */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
           <Pressable onPress={onClose} style={styles.headerBtn}>
             <Icons.ArrowLeft size={24} color={theme.text} />
           </Pressable>
@@ -289,12 +295,15 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
 
           <Pressable 
             onPress={togglePlay} 
+            disabled={isBuffering}
             style={[
               styles.playPauseBtn, 
               { backgroundColor: theme.backgroundElement } // Screenshot 3 light background
             ]}
           >
-            {isPlaying ? (
+            {isBuffering ? (
+              <ActivityIndicator size="large" color={theme.text} />
+            ) : isPlaying ? (
               <Icons.Pause size={38} color={theme.text} />
             ) : (
               <Icons.Play size={38} style={{ marginLeft: 4 }} color={theme.text} />
@@ -342,85 +351,89 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
         </View>
 
         {/* SIDE DRAWER: PLAYBACK QUEUE MODAL */}
-        <Modal visible={showQueue} transparent={true} animationType="fade">
-          <Pressable onPress={() => setShowQueue(false)} style={styles.modalOverlay}>
-            <View style={[styles.queueSheet, { backgroundColor: theme.background }]}>
-              <View style={styles.sheetHeader}>
-                <ThemedText style={styles.sheetTitle}>Playback Queue</ThemedText>
-                <Pressable onPress={() => setShowQueue(false)}>
-                  <ThemedText type="small" style={{ color: theme.primary }}>Close</ThemedText>
-                </Pressable>
+        {showQueue && (
+          <Modal visible={true} transparent={true} animationType="fade" onRequestClose={() => setShowQueue(false)}>
+            <Pressable onPress={() => setShowQueue(false)} style={styles.modalOverlay}>
+              <View style={[styles.queueSheet, { backgroundColor: theme.background }]}>
+                <View style={styles.sheetHeader}>
+                  <ThemedText style={styles.sheetTitle}>Playback Queue</ThemedText>
+                  <Pressable onPress={() => setShowQueue(false)}>
+                    <ThemedText type="small" style={{ color: theme.primary }}>Close</ThemedText>
+                  </Pressable>
+                </View>
+                <ScrollView style={{ flex: 1 }}>
+                  {queue.map((track, i) => {
+                    const isCurrent = track.id === currentTrack.id;
+                    return (
+                      <Pressable
+                        key={track.id}
+                        onPress={() => {
+                          playTrack(track);
+                          setShowQueue(false);
+                        }}
+                        style={[
+                          styles.queueItem,
+                          isCurrent && { backgroundColor: theme.backgroundSelected }
+                        ]}
+                      >
+                        <Image source={{ uri: track.coverUrl }} style={styles.queueCoverArt} />
+                        <View style={{ flex: 1 }}>
+                          <ThemedText style={{ fontWeight: isCurrent ? 'bold' : 'normal' }}>
+                            {track.title}
+                          </ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {track.artist}
+                          </ThemedText>
+                        </View>
+                        {isCurrent && <Icons.Checked size={18} color={theme.primary} />}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
               </View>
-              <ScrollView style={{ flex: 1 }}>
-                {queue.map((track, i) => {
-                  const isCurrent = track.id === currentTrack.id;
-                  return (
-                    <Pressable
-                      key={track.id}
-                      onPress={() => {
-                        playTrack(track);
-                        setShowQueue(false);
-                      }}
-                      style={[
-                        styles.queueItem,
-                        isCurrent && { backgroundColor: theme.backgroundSelected }
-                      ]}
-                    >
-                      <Image source={{ uri: track.coverUrl }} style={styles.queueCoverArt} />
-                      <View style={{ flex: 1 }}>
-                        <ThemedText style={{ fontWeight: isCurrent ? 'bold' : 'normal' }}>
-                          {track.title}
-                        </ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          {track.artist}
-                        </ThemedText>
-                      </View>
-                      {isCurrent && <Icons.Checked size={18} color={theme.primary} />}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          </Pressable>
-        </Modal>
+            </Pressable>
+          </Modal>
+        )}
 
         {/* DIALOG SHEET: SLEEP TIMER */}
-        <Modal visible={showSleepTimer} transparent={true} animationType="fade">
-          <Pressable onPress={() => setShowSleepTimer(false)} style={styles.modalOverlay}>
-            <View style={[styles.sleepDialog, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText style={styles.dialogTitle}>Set Sleep Timer</ThemedText>
-              
-              <Pressable onPress={() => startSleepTimer(15)} style={styles.dialogOption}>
-                <ThemedText>15 Minutes</ThemedText>
-              </Pressable>
-              <Pressable onPress={() => startSleepTimer(30)} style={styles.dialogOption}>
-                <ThemedText>30 Minutes</ThemedText>
-              </Pressable>
-              <Pressable onPress={() => startSleepTimer(45)} style={styles.dialogOption}>
-                <ThemedText>45 Minutes</ThemedText>
-              </Pressable>
-              <Pressable onPress={() => startSleepTimer(60)} style={styles.dialogOption}>
-                <ThemedText>1 Hour</ThemedText>
-              </Pressable>
-              
-              {sleepTimeRemaining !== null && (
-                <Pressable 
-                  onPress={() => {
-                    setSleepTimeRemaining(null);
-                    setShowSleepTimer(false);
-                  }} 
-                  style={[styles.dialogOption, styles.dialogCancelOption]}
-                >
-                  <ThemedText style={{ color: '#E03B3B', fontWeight: 'bold' }}>Cancel Active Timer</ThemedText>
+        {showSleepTimer && (
+          <Modal visible={true} transparent={true} animationType="fade" onRequestClose={() => setShowSleepTimer(false)}>
+            <Pressable onPress={() => setShowSleepTimer(false)} style={styles.modalOverlay}>
+              <View style={[styles.sleepDialog, { backgroundColor: theme.backgroundElement }]}>
+                <ThemedText style={styles.dialogTitle}>Set Sleep Timer</ThemedText>
+                
+                <Pressable onPress={() => startSleepTimer(15)} style={styles.dialogOption}>
+                  <ThemedText>15 Minutes</ThemedText>
                 </Pressable>
-              )}
+                <Pressable onPress={() => startSleepTimer(30)} style={styles.dialogOption}>
+                  <ThemedText>30 Minutes</ThemedText>
+                </Pressable>
+                <Pressable onPress={() => startSleepTimer(45)} style={styles.dialogOption}>
+                  <ThemedText>45 Minutes</ThemedText>
+                </Pressable>
+                <Pressable onPress={() => startSleepTimer(60)} style={styles.dialogOption}>
+                  <ThemedText>1 Hour</ThemedText>
+                </Pressable>
+                
+                {sleepTimeRemaining !== null && (
+                  <Pressable 
+                    onPress={() => {
+                      setSleepTimeRemaining(null);
+                      setShowSleepTimer(false);
+                    }} 
+                    style={[styles.dialogOption, styles.dialogCancelOption]}
+                  >
+                    <ThemedText style={{ color: '#E03B3B', fontWeight: 'bold' }}>Cancel Active Timer</ThemedText>
+                  </Pressable>
+                )}
 
-              <Pressable onPress={() => setShowSleepTimer(false)} style={styles.dialogCloseOption}>
-                <ThemedText type="small" themeColor="textSecondary">Close</ThemedText>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Modal>
+                <Pressable onPress={() => setShowSleepTimer(false)} style={styles.dialogCloseOption}>
+                  <ThemedText type="small" themeColor="textSecondary">Close</ThemedText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Modal>
+        )}
 
       </SafeAreaView>
     </Modal>

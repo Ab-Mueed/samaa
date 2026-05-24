@@ -15,6 +15,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface CustomPlaylist {
   id: string;
@@ -25,6 +26,7 @@ interface CustomPlaylist {
 export default function PlaylistsScreen() {
   const { tracks, likes, history, playAll } = usePlayer();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [playlists, setPlaylists] = useState<CustomPlaylist[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -64,7 +66,7 @@ export default function PlaylistsScreen() {
       <SafeAreaView style={styles.safeArea}>
         
         {/* HEADER */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
           <ThemedText type="subtitle" style={styles.headerTitle}>Spiritual Playlists</ThemedText>
           <Pressable 
             onPress={() => setShowCreateModal(true)} 
@@ -151,31 +153,33 @@ export default function PlaylistsScreen() {
         </ScrollView>
 
         {/* DIALOG POPUP: CREATE PLAYLIST */}
-        <Modal visible={showCreateModal} transparent={true} animationType="fade">
-          <Pressable onPress={() => setShowCreateModal(false)} style={styles.modalOverlay}>
-            <View style={[styles.createDialog, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText style={styles.dialogTitle}>Create Playlist</ThemedText>
-              
-              <TextInput
-                placeholder="Enter playlist name..."
-                placeholderTextColor={theme.textSecondary}
-                value={playlistName}
-                onChangeText={setPlaylistName}
-                autoFocus={true}
-                style={[styles.dialogInput, { color: theme.text, borderBottomColor: theme.outline }]}
-              />
-
-              <View style={styles.dialogButtonsRow}>
-                <Pressable onPress={() => setShowCreateModal(false)} style={styles.dialogBtn}>
-                  <ThemedText themeColor="textSecondary">Cancel</ThemedText>
-                </Pressable>
-                <Pressable onPress={handleCreatePlaylist} style={styles.dialogBtn}>
-                  <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Create</ThemedText>
-                </Pressable>
+        {showCreateModal && (
+          <Modal visible={true} transparent={true} animationType="fade" onRequestClose={() => setShowCreateModal(false)}>
+            <Pressable onPress={() => setShowCreateModal(false)} style={styles.modalOverlay}>
+              <View style={[styles.createDialog, { backgroundColor: theme.backgroundElement }]}>
+                <ThemedText style={styles.dialogTitle}>Create Playlist</ThemedText>
+                
+                <TextInput
+                  placeholder="Enter playlist name..."
+                  placeholderTextColor={theme.textSecondary}
+                  value={playlistName}
+                  onChangeText={setPlaylistName}
+                  autoFocus={true}
+                  style={[styles.dialogInput, { color: theme.text, borderBottomColor: theme.outline }]}
+                />
+  
+                <View style={styles.dialogButtonsRow}>
+                  <Pressable onPress={() => setShowCreateModal(false)} style={styles.dialogBtn}>
+                    <ThemedText themeColor="textSecondary">Cancel</ThemedText>
+                  </Pressable>
+                  <Pressable onPress={handleCreatePlaylist} style={styles.dialogBtn}>
+                    <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Create</ThemedText>
+                  </Pressable>
+                </View>
               </View>
-            </View>
-          </Pressable>
-        </Modal>
+            </Pressable>
+          </Modal>
+        )}
 
       </SafeAreaView>
     </ThemedView>
