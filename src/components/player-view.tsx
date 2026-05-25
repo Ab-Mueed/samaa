@@ -337,6 +337,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
             >
               {/* Background Inactive Track */}
               <View 
+                pointerEvents="none"
                 style={[
                   styles.progressBarBackgroundTrack, 
                   { backgroundColor: 'rgba(255,255,255,0.16)' }
@@ -345,6 +346,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
 
               {/* Active Played Track (Thick White Pill) */}
               <View 
+                pointerEvents="none"
                 style={[
                   styles.progressBarActiveTrack, 
                   { 
@@ -356,6 +358,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
 
               {/* Slider Thumb: Bold Rounded Vertical Bar */}
               <View
+                pointerEvents="none"
                 style={[
                   styles.progressBarVerticalThumb,
                   {

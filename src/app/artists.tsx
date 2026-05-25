@@ -1,19 +1,17 @@
-import React from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  ScrollView, 
-  Pressable
-} from 'react-native';
-import { Image } from 'expo-image';
-import { usePlayer } from '@/context/player-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Icons } from '@/components/icons';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { usePlayer } from '@/context/player-context';
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing, MaxContentWidth } from '@/constants/theme';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ArtistsScreen() {
   const { tracks } = usePlayer();
@@ -23,7 +21,7 @@ export default function ArtistsScreen() {
 
   // Create list of unique artists
   const artistsMap = new Map<string, { name: string; avatar: string; trackCount: number }>();
-  
+
   tracks.forEach(track => {
     if (!artistsMap.has(track.artist)) {
       artistsMap.set(track.artist, {
@@ -50,7 +48,7 @@ export default function ArtistsScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        
+
         {/* HEADER */}
         <View style={[styles.header, { paddingTop: Spacing.three }]}>
           <ThemedText type="subtitle" style={styles.headerTitle}>Spiritual Chanters</ThemedText>
@@ -63,14 +61,14 @@ export default function ArtistsScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.gridContainer}>
             {artists.map((artist, idx) => (
-              <Pressable 
+              <Pressable
                 key={idx}
                 onPress={() => navigateToArtist(artist.name)}
                 style={({ pressed }) => [styles.gridItem, pressed && styles.pressed]}
               >
-                <Image 
-                  source={{ uri: artist.avatar }} 
-                  style={[styles.avatar as any, { borderColor: theme.backgroundElement }]} 
+                <Image
+                  source={{ uri: artist.avatar }}
+                  style={[styles.avatar as any, { borderColor: theme.backgroundElement }]}
                   transition={250}
                 />
                 <ThemedText style={styles.artistName}>{artist.name}</ThemedText>
