@@ -6,11 +6,13 @@ import {
   Pressable,
   Modal,
   TextInput,
-  Dimensions
+  Dimensions,
+  Alert
 } from 'react-native';
 import { Image } from 'expo-image';
 import { usePlayer, Track } from '@/context/player-context';
 import { ThemedText } from '@/components/themed-text';
+import { TrackImage } from '@/components/track-image';
 import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
 import { useTheme } from '@/hooks/use-theme';
@@ -32,6 +34,7 @@ export default function PlaylistsScreen() {
     playlists,
     createPlaylist,
     removeTrackFromPlaylist,
+    deletePlaylist,
     toggleLike
   } = usePlayer();
   
@@ -202,8 +205,8 @@ export default function PlaylistsScreen() {
                       pressed && { opacity: 0.8 }
                     ]}
                   >
-                    <Icons.Play size={18} color="#FFFFFF" fill="#FFFFFF" style={{ marginRight: 6 }} />
-                    <ThemedText style={styles.playAllText}>Play All</ThemedText>
+                    <Icons.Play size={18} color={theme.onPrimary || '#FFFFFF'} fill={theme.onPrimary || '#FFFFFF'} style={{ marginRight: 6 }} />
+                    <ThemedText style={[styles.playAllText, { color: theme.onPrimary || '#FFFFFF' }]}>Play All</ThemedText>
                   </Pressable>
                 )}
                 
@@ -221,7 +224,7 @@ export default function PlaylistsScreen() {
                           pressed && { backgroundColor: theme.backgroundSelected || 'rgba(0,0,0,0.04)' }
                         ]}
                       >
-                        <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
+                        <TrackImage track={track} style={styles.trackListCoverArt} />
                         <View style={styles.trackListMeta}>
                           <ThemedText style={styles.trackListName}>{track.title}</ThemedText>
                           <ThemedText type="small" themeColor="textSecondary">{track.artist}</ThemedText>
@@ -259,7 +262,31 @@ export default function PlaylistsScreen() {
             <Pressable onPress={() => setSelectedPlaylist(null)} style={[styles.modalOverlay, { justifyContent: 'flex-end', alignItems: 'stretch' }]}>
               <View style={[styles.likedSongsSheet, { backgroundColor: theme.background }]}>
                 <View style={styles.sheetHeader}>
-                  <ThemedText style={styles.sheetTitle}>{selectedPlaylist.name}</ThemedText>
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+                    <ThemedText style={styles.sheetTitle} numberOfLines={1}>{selectedPlaylist.name}</ThemedText>
+                    <Pressable 
+                      onPress={() => {
+                        Alert.alert(
+                          'Delete Playlist',
+                          `Are you sure you want to delete "${selectedPlaylist.name}"?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { 
+                              text: 'Delete', 
+                              style: 'destructive',
+                              onPress: () => {
+                                deletePlaylist(selectedPlaylist.id);
+                                setSelectedPlaylist(null);
+                              }
+                            }
+                          ]
+                        );
+                      }}
+                      style={{ padding: Spacing.one }}
+                    >
+                      <ThemedText style={{ color: '#E03B3B', fontSize: 13, fontWeight: 'bold', marginLeft: 8 }}>Delete</ThemedText>
+                    </Pressable>
+                  </View>
                   <Pressable onPress={() => setSelectedPlaylist(null)} style={styles.closeTextBtn}>
                     <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
                   </Pressable>
@@ -277,8 +304,8 @@ export default function PlaylistsScreen() {
                       pressed && { opacity: 0.8 }
                     ]}
                   >
-                    <Icons.Play size={18} color="#FFFFFF" fill="#FFFFFF" style={{ marginRight: 6 }} />
-                    <ThemedText style={styles.playAllText}>Play All</ThemedText>
+                    <Icons.Play size={18} color={theme.onPrimary || '#FFFFFF'} fill={theme.onPrimary || '#FFFFFF'} style={{ marginRight: 6 }} />
+                    <ThemedText style={[styles.playAllText, { color: theme.onPrimary || '#FFFFFF' }]}>Play All</ThemedText>
                   </Pressable>
                 )}
                 
@@ -296,7 +323,7 @@ export default function PlaylistsScreen() {
                           pressed && { backgroundColor: theme.backgroundSelected || 'rgba(0,0,0,0.04)' }
                         ]}
                       >
-                        <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
+                        <TrackImage track={track} style={styles.trackListCoverArt} />
                         <View style={styles.trackListMeta}>
                           <ThemedText style={styles.trackListName}>{track.title}</ThemedText>
                           <ThemedText type="small" themeColor="textSecondary">{track.artist}</ThemedText>

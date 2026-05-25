@@ -8,15 +8,15 @@ import {
   Modal,
   Animated
 } from 'react-native';
-import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { usePlayer, Track } from '@/context/player-context';
 import { AddToPlaylistModal } from '@/components/add-to-playlist-modal';
+import { TrackImage } from '@/components/track-image';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 
 type FilterType = 'all' | 'vocal' | 'liked';
@@ -181,7 +181,7 @@ export default function SongsScreen() {
                   onPress={() => playTrack(track)}
                   style={({ pressed }) => [styles.songRow, pressed && styles.pressed]}
                 >
-                  <Image source={{ uri: track.coverUrl }} style={styles.songCover} transition={200} />
+                  <TrackImage track={track} style={styles.songCover} transition={200} />
                   <View style={styles.songMeta}>
                     <ThemedText style={styles.songTitle}>{track.title}</ThemedText>
                     <View style={styles.songSubtitleRow}>
@@ -217,7 +217,7 @@ export default function SongsScreen() {
               {selectedTrack && (
                 <View style={[styles.optionsSheet, { backgroundColor: theme.backgroundElement }]}>
                   <View style={styles.optionsHeader}>
-                    <Image source={{ uri: selectedTrack.coverUrl }} style={styles.optionsCover} />
+                    <TrackImage track={selectedTrack} style={styles.optionsCover} />
                     <View style={{ flex: 1 }}>
                       <ThemedText style={{ fontWeight: '800', fontSize: 16 }}>{selectedTrack.title}</ThemedText>
                       <ThemedText type="small" themeColor="textSecondary">{selectedTrack.artist}</ThemedText>

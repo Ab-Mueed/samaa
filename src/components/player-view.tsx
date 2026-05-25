@@ -1,5 +1,6 @@
 import { usePlayer, usePlayerProgress, Track } from '@/context/player-context';
 import { AddToPlaylistModal } from './add-to-playlist-modal';
+import { TrackImage } from './track-image';
 import { useTheme } from '@/hooks/use-theme';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { Image } from 'expo-image';
@@ -316,8 +317,8 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
           {/* CENTER VIEWPORT: GORGEOUS CENTERED ALBUM ART */}
           <View style={styles.centerArtContainer}>
             <View style={[styles.artWrapper, { shadowColor: theme.primary }]}>
-              <Image
-                source={{ uri: currentTrack.coverUrl }}
+              <TrackImage
+                track={currentTrack}
                 style={styles.albumArt}
                 transition={300}
               />
@@ -477,7 +478,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
                               isCurrent && { backgroundColor: theme.backgroundSelected }
                             ]}
                           >
-                            <Image source={{ uri: track.coverUrl }} style={styles.queueCoverArt} />
+                            <TrackImage track={track} style={styles.queueCoverArt} />
                             <View style={{ flex: 1 }}>
                               <ThemedText style={{ fontWeight: isCurrent ? 'bold' : 'normal' }}>
                                 {track.title}
@@ -487,7 +488,6 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
                               </ThemedText>
                             </View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
-                              {isCurrent && <Icons.Checked size={18} color={theme.primary} />}
                               <Pressable
                                 onPress={(e) => {
                                   e.stopPropagation();

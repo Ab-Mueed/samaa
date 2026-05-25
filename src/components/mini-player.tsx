@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { View, StyleSheet, Pressable, Platform, ActivityIndicator, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { usePlayer } from '@/context/player-context';
+import { TrackImage } from './track-image';
 import { ThemedText } from './themed-text';
 import { Icons } from './icons';
 import { useTheme } from '@/hooks/use-theme';
@@ -55,8 +56,8 @@ export function MiniPlayer({ onPress }: MiniPlayerProps) {
     >
       <Pressable onPress={onPress} style={styles.container}>
         <View style={styles.leftSection}>
-          <Image 
-            source={{ uri: currentTrack.coverUrl }} 
+          <TrackImage 
+            track={currentTrack} 
             style={styles.coverArt as any} 
             transition={300}
           />

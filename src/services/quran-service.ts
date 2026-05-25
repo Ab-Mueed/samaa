@@ -15,7 +15,7 @@ export interface QuranReciter {
   arabicName: string;
   serverUrl: string;
   folderPath: string;
-  avatarUrl: string;
+  avatarUrl: any; // Allow local require() or remote uri strings
 }
 
 // Preset Renowned Reciters hosted on mp3quran.net CDN
@@ -26,7 +26,7 @@ export const PRESET_RECITERS: QuranReciter[] = [
     arabicName: 'مشاري العفاسي',
     serverUrl: 'https://server8.mp3quran.net',
     folderPath: 'afs',
-    avatarUrl: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=150&q=80' // Mosque silhouette
+    avatarUrl: require('../../assets/images/mishary-rashid-alafasy.png')
   },
   {
     id: 'sudais',
@@ -34,7 +34,7 @@ export const PRESET_RECITERS: QuranReciter[] = [
     arabicName: 'عبد الرحمن السديس',
     serverUrl: 'https://server11.mp3quran.net',
     folderPath: 'sds',
-    avatarUrl: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=150&q=80' // Arches
+    avatarUrl: require('../../assets/images/abdul-rahman-al-sudais.png')
   },
   {
     id: 'maher',
@@ -42,7 +42,7 @@ export const PRESET_RECITERS: QuranReciter[] = [
     arabicName: 'ماهر المعيقلي',
     serverUrl: 'https://server12.mp3quran.net',
     folderPath: 'maher',
-    avatarUrl: 'https://images.unsplash.com/photo-1609599006353-e629aaabfeae?w=150&q=80' // Quran text
+    avatarUrl: require('../../assets/images/maher-al-mueaqly.png')
   },
   {
     id: 'ghamdi',
@@ -50,7 +50,15 @@ export const PRESET_RECITERS: QuranReciter[] = [
     arabicName: 'سعد الغامدي',
     serverUrl: 'https://server7.mp3quran.net',
     folderPath: 's_gmd',
-    avatarUrl: 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?w=150&q=80' // Starry mosque
+    avatarUrl: require('../../assets/images/al-ghamdi.jpg')
+  },
+  {
+    id: 'dosari',
+    name: 'Yasser Al-Dosari',
+    arabicName: 'ياسر الدوسري',
+    serverUrl: 'https://server11.mp3quran.net',
+    folderPath: 'yasser',
+    avatarUrl: require('../../assets/images/yasser-al-dossari.png')
   }
 ];
 
@@ -105,6 +113,8 @@ export const QuranService = {
           return 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=600&q=80'; // Arches
         case 'maher':
           return 'https://images.unsplash.com/photo-1609599006353-e629aaabfeae?w=600&q=80'; // Quran scriptures
+        case 'dosari':
+          return 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=600&q=80'; // Beautiful arches
         default:
           return 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?w=600&q=80'; // Stars / Twilight silhouette
       }
@@ -123,7 +133,10 @@ export const QuranService = {
         { time: 2, text: `Recited beautifully by ${reciter.name}` },
         { time: 5, text: `Revelation: ${surah.revelationType} • Ayahs: ${surah.numberOfAyahs}` },
         { time: 8, text: `Bismillahir Rahmanir Rahim`, translation: `In the name of Allah, the Beneficent, the Merciful` }
-      ]
+      ],
+      surahNumber: surah.number,
+      surahArabicName: surah.name,
+      surahEnglishName: surah.englishName
     };
   }
 };

@@ -17,6 +17,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { usePlayer, Track } from '@/context/player-context';
 import { AddToPlaylistModal } from '@/components/add-to-playlist-modal';
+import { TrackImage } from '@/components/track-image';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
@@ -253,7 +254,7 @@ export default function HomeScreen() {
                         styles.reciterAvatarWrapper,
                         isActive && { borderColor: theme.primary, borderWidth: 2 }
                       ]}>
-                        <Image source={{ uri: reciter.avatarUrl }} style={styles.reciterAvatar} />
+                        <Image source={typeof reciter.avatarUrl === 'string' ? { uri: reciter.avatarUrl } : reciter.avatarUrl} style={styles.reciterAvatar} />
                       </View>
                       <ThemedText 
                         numberOfLines={1} 
@@ -291,7 +292,7 @@ export default function HomeScreen() {
                       onPress={() => playTrack(track)} 
                       style={({ pressed }) => [styles.trackListItem, pressed && styles.pressed]}
                     >
-                      <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
+                      <TrackImage track={track} style={styles.trackListCoverArt} />
                       <View style={styles.trackListMeta}>
                         <ThemedText style={styles.trackListName} numberOfLines={1}>{track.title}</ThemedText>
                         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{track.artist}</ThemedText>
@@ -361,8 +362,8 @@ export default function HomeScreen() {
                     onPress={() => playTrack(track)} 
                     style={({ pressed }) => [styles.trackListItem, pressed && styles.pressed]}
                   >
-                    <Image 
-                      source={{ uri: track.coverUrl }} 
+                    <TrackImage 
+                      track={track} 
                       style={styles.trackListCoverArt} 
                       transition={250}
                     />
@@ -425,8 +426,8 @@ export default function HomeScreen() {
                       onPress={() => playTrack(track)}
                       style={({ pressed }) => [styles.cardContainer, pressed && styles.pressed]}
                     >
-                      <Image 
-                        source={{ uri: track.coverUrl }} 
+                      <TrackImage 
+                        track={track} 
                         style={styles.cardImage} 
                         transition={300}
                       />

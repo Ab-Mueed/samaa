@@ -20,12 +20,16 @@ export interface Track {
   audioUrl: string;
   coverUrl: string;
   lyrics: LyricLine[];
+  surahNumber?: number;
+  surahArabicName?: string;
+  surahEnglishName?: string;
 }
 
 export interface CustomPlaylist {
   id: string;
   name: string;
   tracks: Track[];
+  mode?: 'nasheed' | 'quran';
 }
 
 export interface PlayerContextProps {
@@ -72,6 +76,7 @@ export interface PlayerContextProps {
   createPlaylist: (name: string) => string;
   addTrackToPlaylist: (playlistId: string, track: Track) => void;
   removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
+  deletePlaylist: (playlistId: string) => void;
 }
 
 export interface PlayerProgressContextProps {
@@ -334,16 +339,35 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const playTrack = async (track: Track) => {
     cleanupDrivers();
-    const isQuran = activeMode === 'quran';
+    
+    // Dynamically align activeMode with track type to support cross-mode playalls
+    const isQuranTrack = track.id.startsWith('quran_');
+    const targetMode = isQuranTrack ? 'quran' : 'nasheed';
+    if (activeModeRef.current !== targetMode) {
+      setActiveMode(targetMode);
+    }
+
+    const isQuran = isQuranTrack;
 
     if (isQuran) {
+      // Automatically toggle active reciter in context if playing a surah by a different reciter
+      const parts = track.id.split('_');
+      if (parts.length >= 3) {
+        const reciterId = parts[1];
+        const reciter = PRESET_RECITERS.find(r => r.id === reciterId);
+        if (reciter && activeReciter.id !== reciter.id) {
+          setActiveReciter(reciter);
+        }
+      }
+
       setQuranCurrentTrack(track);
       setQuranPosition(0);
       setQuranDuration(track.duration);
       setQuranIsPlaying(true);
       setQuranIsBuffering(true);
 
-      const qIndex = quranQueue.findIndex(t => t.id === track.id);
+      // Use quranQueueRef synchronously to bypass asynchronous state lag
+      const qIndex = quranQueueRef.current.findIndex(t => t.id === track.id);
       if (qIndex !== -1) {
         setQuranCurrentIndex(qIndex);
       } else {
@@ -362,7 +386,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsPlaying(true);
       setIsBuffering(true);
 
-      const qIndex = queue.findIndex(t => t.id === track.id);
+      // Use queueRef synchronously to bypass asynchronous state lag
+      const qIndex = queueRef.current.findIndex(t => t.id === track.id);
       if (qIndex !== -1) {
         setCurrentIndex(qIndex);
       } else {
@@ -593,7 +618,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (isShuffleRef.current) {
       nextIndex = getRandomIndex(fallbackList.length);
     } else if (nextIndex >= fallbackList.length) {
-      nextIndex = 0; // loop/restart
+      pauseAudio();
+      seekTo(0);
+      return;
     }
 
     playTrack(fallbackList[nextIndex]);
@@ -735,15 +762,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const playAll = (trackList: Track[], startIndex = 0) => {
-    const isQuran = activeMode === 'quran';
-    if (isQuran) {
+    if (trackList.length === 0) return;
+
+    const firstTrack = trackList[startIndex];
+    const isQuranTrack = firstTrack.id.startsWith('quran_');
+    const targetMode = isQuranTrack ? 'quran' : 'nasheed';
+    if (activeModeRef.current !== targetMode) {
+      setActiveMode(targetMode);
+    }
+
+    if (isQuranTrack) {
+      quranQueueRef.current = trackList;
       setQuranQueue(trackList);
+      setQuranCurrentIndex(startIndex);
     } else {
+      queueRef.current = trackList;
       setQueue(trackList);
+      setCurrentIndex(startIndex);
     }
-    if (trackList.length > 0) {
-      playTrack(trackList[startIndex]);
-    }
+
+    playTrack(firstTrack);
   };
 
   const clearHistory = () => {
@@ -764,7 +802,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const newPlaylist: CustomPlaylist = {
       id,
       name,
-      tracks: []
+      tracks: [],
+      mode: activeModeRef.current
     };
     setPlaylists(prev => [...prev, newPlaylist]);
     return id;
@@ -796,6 +835,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }));
   };
 
+  const deletePlaylist = (playlistId: string) => {
+    setPlaylists(prev => prev.filter(pl => pl.id !== playlistId));
+  };
+
   // Map dynamic values based on the currently active mode sandbox
   const contextTracks = activeMode === 'nasheed' ? nasheedTracks : quranTracks;
   const contextCurrentTrack = activeMode === 'nasheed' ? currentTrack : quranCurrentTrack;
@@ -803,11 +846,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const contextIsBuffering = activeMode === 'nasheed' ? isBuffering : quranIsBuffering;
   const contextPosition = activeMode === 'nasheed' ? position : quranPosition;
   const contextDuration = activeMode === 'nasheed' ? duration : quranDuration;
-  const contextQueue = activeMode === 'nasheed' ? customQueue : quranCustomQueue;
+  const contextQueue = activeMode === 'nasheed'
+    ? (customQueue.length > 0 ? [...customQueue, ...queue.slice(Math.max(0, currentIndex))] : queue.slice(Math.max(0, currentIndex)))
+    : (quranCustomQueue.length > 0 ? [...quranCustomQueue, ...quranQueue.slice(Math.max(0, quranCurrentIndex))] : quranQueue.slice(Math.max(0, quranCurrentIndex)));
   const contextCurrentIndex = activeMode === 'nasheed' ? currentIndex : quranCurrentIndex;
   const contextLikes = activeMode === 'nasheed' ? likes : quranLikes;
   const contextHistory = activeMode === 'nasheed' ? history : quranHistory;
   const contextLikedTracks = activeMode === 'nasheed' ? likedNasheedTracks : likedQuranTracks;
+
+  const contextPlaylists = React.useMemo(() => {
+    return playlists.filter(pl => pl.mode === activeMode || (!pl.mode && activeMode === 'nasheed'));
+  }, [playlists, activeMode]);
 
   const contextValue = React.useMemo(() => ({
     tracks: contextTracks,
@@ -849,10 +898,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     searchNasheeds,
 
     // GLOBAL CUSTOM PLAYLISTS
-    playlists,
+    playlists: contextPlaylists,
     createPlaylist,
     addTrackToPlaylist,
     removeTrackFromPlaylist,
+    deletePlaylist,
   }), [
     contextTracks,
     contextCurrentTrack,
@@ -876,7 +926,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     searchNasheeds,
     likedNasheedTracks,
     likedQuranTracks,
-    playlists,
+    contextPlaylists,
   ]);
 
   const progressValue = React.useMemo(() => ({

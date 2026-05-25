@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { usePlayer, Track } from '@/context/player-context';
 import { AddToPlaylistModal } from '@/components/add-to-playlist-modal';
+import { TrackImage } from '@/components/track-image';
+import { QuranService, PRESET_RECITERS } from '@/services/quran-service';
 import { useTheme } from '@/hooks/use-theme';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -82,15 +84,27 @@ export default function SearchScreen() {
 
   const [filteredTracks, setFilteredTracks] = useState<Track[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [allQuranTracks, setAllQuranTracks] = useState<Track[]>([]);
+
+  useEffect(() => {
+    if (activeMode === 'quran' && allQuranTracks.length === 0) {
+      QuranService.fetchSurahs().then(surahs => {
+        const list: Track[] = [];
+        PRESET_RECITERS.forEach(reciter => {
+          surahs.forEach(surah => {
+            list.push(QuranService.transformToTrack(surah, reciter));
+          });
+        });
+        setAllQuranTracks(list);
+      });
+    }
+  }, [activeMode, allQuranTracks]);
 
   useEffect(() => {
     if (activeMode === 'quran') {
       setIsSearching(false);
       const qFiltered = query.trim()
-        ? tracks.filter(track => {
-            const isQuranTrack = track.id.startsWith('quran_');
-            if (!isQuranTrack) return false;
-            
+        ? allQuranTracks.filter(track => {
             return track.title.toLowerCase().includes(query.toLowerCase()) ||
                    track.artist.toLowerCase().includes(query.toLowerCase()) ||
                    track.album.toLowerCase().includes(query.toLowerCase());
@@ -114,7 +128,7 @@ export default function SearchScreen() {
       }, 400);
       return () => clearTimeout(delayDebounce);
     }
-  }, [query, activeMode, tracks]);
+  }, [query, activeMode, allQuranTracks]);
 
   const displayBrowseTracks = tracks.filter(track => {
     const isQuranTrack = track.id.startsWith('quran_');
@@ -146,7 +160,7 @@ export default function SearchScreen() {
           pressed && { opacity: 0.8 }
         ]}
       >
-        <Image source={{ uri: item.coverUrl }} style={styles.trackCover} />
+        <TrackImage track={item} style={styles.trackCover} />
         <View style={styles.trackMeta}>
           <ThemedText style={styles.trackTitle} numberOfLines={1}>{item.title}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
