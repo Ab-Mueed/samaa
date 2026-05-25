@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Track } from '@/context/player-context';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 interface TrackImageProps {
   track: Track | null;
@@ -11,8 +12,10 @@ interface TrackImageProps {
 }
 
 export function TrackImage({ track, style, transition }: TrackImageProps) {
+  const theme = useTheme();
+
   if (!track) {
-    return <View style={[style, { backgroundColor: '#1A1C1E' }]} />;
+    return <View style={[style, { backgroundColor: theme.backgroundElement }]} />;
   }
 
   // Flatten style to read dimensions easily
@@ -55,36 +58,27 @@ export function TrackImage({ track, style, transition }: TrackImageProps) {
           width, 
           height, 
           borderRadius, 
-          backgroundColor: '#0F1A15', // Deep luxurious spiritual emerald dark green
-          borderColor: '#D4AF37', // Gold metallic color
-          borderWidth: isLarge ? 2.5 : 1,
+          backgroundColor: theme.backgroundElement,
+          borderColor: theme.outline + '20',
+          borderWidth: 1,
         }
       ]}>
-        {/* Sacred Geometry / Corner Accents for large album arts */}
-        {isLarge && (
-          <>
-            <View style={[styles.cornerAccent, { top: 6, left: 6, borderTopWidth: 1.5, borderLeftWidth: 1.5 }]} />
-            <View style={[styles.cornerAccent, { top: 6, right: 6, borderTopWidth: 1.5, borderRightWidth: 1.5 }]} />
-            <View style={[styles.cornerAccent, { bottom: 6, left: 6, borderBottomWidth: 1.5, borderLeftWidth: 1.5 }]} />
-            <View style={[styles.cornerAccent, { bottom: 6, right: 6, borderBottomWidth: 1.5, borderRightWidth: 1.5 }]} />
-          </>
-        )}
-
         <View style={styles.content}>
           {/* Top Surah Number Badge */}
           {isLarge ? (
-            <View style={styles.numberBadge}>
-              <Text style={styles.numberBadgeText}>{surahNum}</Text>
+            <View style={[styles.numberBadge, { borderColor: theme.outline + '40' }]}>
+              <Text style={[styles.numberBadgeText, { color: theme.primary }]}>{surahNum}</Text>
             </View>
           ) : (
-            <Text style={styles.smallNumber}>#{surahNum}</Text>
+            <Text style={[styles.smallNumber, { color: theme.textSecondary }]}>#{surahNum}</Text>
           )}
 
           {/* Elegant Arabic Text */}
           <Text style={[
             styles.arabicText, 
             { 
-              fontSize: isLarge ? Math.floor(width * 0.12) : Math.floor(width * 0.20),
+              fontSize: isLarge ? Math.floor(width * 0.14) : Math.floor(width * 0.22),
+              color: theme.text,
               marginTop: isLarge ? Spacing.two : Spacing.half,
             }
           ]} numberOfLines={1}>
@@ -95,8 +89,9 @@ export function TrackImage({ track, style, transition }: TrackImageProps) {
           <Text style={[
             styles.englishText, 
             { 
-              fontSize: isLarge ? Math.floor(width * 0.075) : Math.floor(width * 0.14),
-              fontWeight: '800',
+              fontSize: isLarge ? Math.floor(width * 0.08) : Math.floor(width * 0.14),
+              color: theme.primary,
+              fontWeight: '700',
               marginTop: isLarge ? 4 : 0,
             }
           ]} numberOfLines={1}>
@@ -105,7 +100,7 @@ export function TrackImage({ track, style, transition }: TrackImageProps) {
 
           {/* Translation/Subtext for maximized player */}
           {isLarge && (
-            <Text style={styles.translationText} numberOfLines={1}>
+            <Text style={[styles.translationText, { color: theme.textSecondary }]} numberOfLines={1}>
               {track.album?.replace('Surah', '').trim()}
             </Text>
           )}
@@ -124,11 +119,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
     position: 'relative',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
   },
   content: {
     justifyContent: 'center',
@@ -136,48 +126,38 @@ const styles = StyleSheet.create({
     width: '90%',
     height: '90%',
   },
-  cornerAccent: {
-    position: 'absolute',
-    width: 14,
-    height: 14,
-    borderColor: '#D4AF3780',
-  },
   numberBadge: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    borderColor: '#D4AF3780',
-    borderWidth: 1.5,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.half,
   },
   numberBadgeText: {
-    color: '#D4AF37',
     fontSize: 11,
     fontWeight: 'bold',
   },
   smallNumber: {
-    color: '#D4AF37CC',
     fontSize: 8,
     fontWeight: '800',
     marginBottom: 1,
   },
   arabicText: {
-    color: '#E5C158', // High-fidelity bright gold
     fontFamily: Platform.OS === 'ios' ? 'Traditional Arabic' : 'serif',
     fontWeight: 'bold',
     textAlign: 'center',
   },
   englishText: {
-    color: '#FFFFFF',
     textAlign: 'center',
   },
   translationText: {
-    color: 'rgba(255,255,255,0.4)',
     fontSize: 11,
     marginTop: 4,
     fontStyle: 'italic',
     textAlign: 'center',
+    opacity: 0.7,
   },
 });
+
