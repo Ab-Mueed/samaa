@@ -9,7 +9,8 @@ import {
   Dimensions, 
   Platform,
   Animated,
-  Easing
+  Easing,
+  ActivityIndicator
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Image } from 'expo-image';
@@ -38,7 +39,9 @@ export default function HomeScreen() {
     quranReciters, 
     isSwitchingMode,
     addToQueue,
-    searchNasheeds
+    searchNasheeds,
+    toggleLike,
+    likedTracks
   } = usePlayer();
   
   const theme = useTheme();
@@ -97,9 +100,11 @@ export default function HomeScreen() {
   }, [activeMode]);
 
   const [filteredTracks, setFilteredTracks] = useState<Track[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (activeMode === 'quran') {
+      setIsSearching(false);
       const qFiltered = searchQuery.trim()
         ? tracks.filter(t => 
             t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,11 +116,17 @@ export default function HomeScreen() {
     } else {
       if (!searchQuery.trim()) {
         setFilteredTracks([]);
+        setIsSearching(false);
         return;
       }
+      setIsSearching(true);
       const delayDebounce = setTimeout(async () => {
-        const results = await searchNasheeds(searchQuery);
-        setFilteredTracks(results);
+        try {
+          const results = await searchNasheeds(searchQuery);
+          setFilteredTracks(results);
+        } finally {
+          setIsSearching(false);
+        }
       }, 400);
       return () => clearTimeout(delayDebounce);
     }
@@ -143,7 +154,12 @@ export default function HomeScreen() {
               placeholderTextColor={theme.textSecondary}
               style={[styles.searchInput, { color: theme.text }]}
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                if (activeMode === 'nasheed') {
+                  setIsSearching(text.trim().length > 0);
+                }
+              }}
             />
             <Pressable 
               onPress={playRandomTrack} 
@@ -259,33 +275,60 @@ export default function HomeScreen() {
           {searchQuery.length > 0 ? (
             <View style={styles.sectionContainer}>
               <ThemedText style={[styles.sectionTitle, { color: theme.primary }]}>Search Results</ThemedText>
-              {filteredTracks.length > 0 ? (
-                filteredTracks.map(track => (
-                  <Pressable 
-                    key={track.id} 
-                    onPress={() => playTrack(track)} 
-                    style={({ pressed }) => [styles.trackListItem, pressed && styles.pressed]}
-                  >
-                    <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
-                    <View style={styles.trackListMeta}>
-                      <ThemedText style={styles.trackListName} numberOfLines={1}>{track.title}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{track.artist}</ThemedText>
-                    </View>
+              {isSearching ? (
+                <View style={{ paddingVertical: Spacing.four, alignItems: 'center', gap: Spacing.two }}>
+                  <ActivityIndicator size="small" color={theme.primary} />
+                  <ThemedText type="small" themeColor="textSecondary">Searching YouTube...</ThemedText>
+                </View>
+              ) : filteredTracks.length > 0 ? (
+                filteredTracks.map(track => {
+                  const isLiked = likes.includes(track.id);
+                  return (
                     <Pressable 
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        addToQueue(track);
-                        triggerToast(`"${track.title}" added to queue`);
-                      }}
-                      style={({ pressed }) => [
-                        { padding: Spacing.two, borderRadius: 20 },
-                        pressed && { backgroundColor: theme.primary + '15' }
-                      ]}
+                      key={track.id} 
+                      onPress={() => playTrack(track)} 
+                      style={({ pressed }) => [styles.trackListItem, pressed && styles.pressed]}
                     >
-                      <Icons.Queue size={20} color={theme.textSecondary} />
+                      <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
+                      <View style={styles.trackListMeta}>
+                        <ThemedText style={styles.trackListName} numberOfLines={1}>{track.title}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{track.artist}</ThemedText>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: Spacing.one }}>
+                        <Pressable 
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            toggleLike(track);
+                            triggerToast(likes.includes(track.id) ? `Removed from Favorites` : `Added to Favorites`);
+                          }}
+                          style={({ pressed }) => [
+                            { padding: Spacing.two, borderRadius: 20 },
+                            pressed && { backgroundColor: theme.primary + '15' }
+                          ]}
+                        >
+                          <Icons.Heart 
+                            size={20} 
+                            color={isLiked ? "#E03B3B" : theme.textSecondary} 
+                            fill={isLiked ? "#E03B3B" : "transparent"}
+                          />
+                        </Pressable>
+                        <Pressable 
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            addToQueue(track);
+                            triggerToast(`"${track.title}" added to queue`);
+                          }}
+                          style={({ pressed }) => [
+                            { padding: Spacing.two, borderRadius: 20 },
+                            pressed && { backgroundColor: theme.primary + '15' }
+                          ]}
+                        >
+                          <Icons.Queue size={20} color={theme.textSecondary} />
+                        </Pressable>
+                      </View>
                     </Pressable>
-                  </Pressable>
-                ))
+                  );
+                })
               ) : (
                 <ThemedText themeColor="textSecondary" style={styles.emptyText}>No results found.</ThemedText>
               )}

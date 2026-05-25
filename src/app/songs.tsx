@@ -20,7 +20,7 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 type FilterType = 'all' | 'vocal' | 'liked';
 
 export default function SongsScreen() {
-  const { tracks, likes, playTrack, toggleLike, addToQueue } = usePlayer();
+  const { tracks, likes, playTrack, toggleLike, addToQueue, likedTracks } = usePlayer();
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -31,18 +31,23 @@ export default function SongsScreen() {
   const [showOptionsModal, setShowOptionsModal] = useState(false);
 
   // Filter logic
-  const filteredTracks = tracks.filter(track => {
-    // 1. Filter by chip
-    if (activeFilter === 'liked' && !likes.includes(track.id)) return false;
-    if (activeFilter === 'vocal' && track.album === 'Vocal Solitude') return true; // Muhammad al-Muqit's vocal focus
-    if (activeFilter === 'vocal' && track.artist === 'Mishari Rashid Alafasy') return true; // Alafasy Vocal
+  const filteredTracks = activeFilter === 'liked'
+    ? likedTracks.filter(track => 
+        track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        track.artist.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : tracks.filter(track => {
+        // 1. Filter by chip
+        if (activeFilter === 'vocal' && track.album === 'Vocal Solitude') return true; // Muhammad al-Muqit's vocal focus
+        if (activeFilter === 'vocal' && track.artist === 'Mishari Rashid Alafasy') return true; // Alafasy Vocal
+        if (activeFilter === 'vocal') return false;
 
-    // 2. Filter by search query
-    return (
-      track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      track.artist.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+        // 2. Filter by search query
+        return (
+          track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          track.artist.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      });
 
   const openOptions = (track: Track) => {
     setSelectedTrack(track);
@@ -51,7 +56,7 @@ export default function SongsScreen() {
 
   const handleToggleLike = () => {
     if (selectedTrack) {
-      toggleLike(selectedTrack.id);
+      toggleLike(selectedTrack);
       setShowOptionsModal(false);
     }
   };

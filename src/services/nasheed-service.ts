@@ -49,17 +49,20 @@ export const NasheedService = {
    */
   async fetchTrending(limit = 15): Promise<Track[]> {
     try {
-      const response = await fetch(`${BASE_URL}/trending?limit=${limit}`);
+      const url = `${BASE_URL}/trending?limit=${limit}`;
+      console.log(`[NasheedService] Fetching trending: ${url}`);
+      const response = await fetch(url);
       if (!response.ok) {
-        throw new Error('Failed to fetch trending nasheeds');
+        throw new Error(`Failed to fetch trending, status: ${response.status}`);
       }
       const json = await response.json();
+      console.log(`[NasheedService] Trending fetch success:`, json.success);
       if (json && json.success && Array.isArray(json.data)) {
         return json.data.map((item: any) => this.transformToTrack(item, 'Trending Nasheed'));
       }
       throw new Error('Invalid schema shape');
     } catch (e) {
-      console.log('Error fetching trending nasheeds', e);
+      console.log('[NasheedService] Error fetching trending nasheeds:', e);
       return [];
     }
   },
@@ -70,17 +73,20 @@ export const NasheedService = {
   async search(query: string): Promise<Track[]> {
     if (!query.trim()) return [];
     try {
-      const response = await fetch(`${BASE_URL}/search?q=${encodeURIComponent(query)}`);
+      const url = `${BASE_URL}/search?q=${encodeURIComponent(query)}`;
+      console.log(`[NasheedService] Searching: ${url}`);
+      const response = await fetch(url);
       if (!response.ok) {
-        throw new Error('Search failed');
+        throw new Error(`Search failed with status ${response.status}`);
       }
       const json = await response.json();
+      console.log(`[NasheedService] Search response success:`, json.success);
       if (json && json.success && Array.isArray(json.data)) {
         return json.data.map((item: any) => this.transformToTrack(item, 'Search Result'));
       }
       throw new Error('Invalid search response');
     } catch (e) {
-      console.log('Error searching nasheeds', e);
+      console.log('[NasheedService] Error searching nasheeds:', e);
       return [];
     }
   },

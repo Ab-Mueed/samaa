@@ -23,16 +23,13 @@ interface CustomPlaylist {
 }
 
 export default function PlaylistsScreen() {
-  const { tracks, likes, history, playAll } = usePlayer();
+  const { tracks, likedTracks, history, playAll } = usePlayer();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   const [playlists, setPlaylists] = useState<CustomPlaylist[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
-
-  // Extract liked tracks
-  const likedTracks = tracks.filter(t => likes.includes(t.id));
   
   // Extract history tracks
   const historyTracks = history.map(id => tracks.find(t => t.id === id)).filter((t): t is Track => !!t);

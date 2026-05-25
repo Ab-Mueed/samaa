@@ -25,7 +25,7 @@ interface CustomPlaylist {
 }
 
 export default function LibraryScreen() {
-  const { tracks, likes, history, playTrack, playAll, activeMode } = usePlayer();
+  const { tracks, likedTracks, history, playTrack, playAll, activeMode } = usePlayer();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -34,9 +34,6 @@ export default function LibraryScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
   const [showLikedSongsModal, setShowLikedSongsModal] = useState(false);
-
-  // Extract liked tracks
-  const likedTracks = tracks.filter(t => likes.includes(t.id));
   
   // Extract history tracks
   const historyTracks = history.map(id => tracks.find(t => t.id === id)).filter((t): t is Track => !!t);

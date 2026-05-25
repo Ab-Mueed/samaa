@@ -37,7 +37,8 @@ export interface PlayerContextProps {
   togglePlay: () => void;
   nextTrack: () => void;
   prevTrack: () => void;
-  toggleLike: (trackId: string) => void;
+  toggleLike: (track: Track) => void;
+  likedTracks: Track[];
   toggleShuffle: () => void;
   toggleRepeat: () => void;
   addToQueue: (track: Track) => void;
@@ -93,6 +94,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [customQueue, setCustomQueue] = useState<Track[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [likes, setLikes] = useState<string[]>([]);
+  const [likedNasheedTracks, setLikedNasheedTracks] = useState<Track[]>([]);
   const [history, setHistory] = useState<string[]>([]);
 
   // Sandbox 2: Quran States
@@ -105,6 +107,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [quranCustomQueue, setQuranCustomQueue] = useState<Track[]>([]);
   const [quranCurrentIndex, setQuranCurrentIndex] = useState<number>(-1);
   const [quranLikes, setQuranLikes] = useState<string[]>([]);
+  const [likedQuranTracks, setLikedQuranTracks] = useState<Track[]>([]);
   const [quranHistory, setQuranHistory] = useState<string[]>([]);
 
   // Layout preference states (OLED theme is AMOLED by default)
@@ -624,20 +627,30 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const toggleLike = (trackId: string) => {
+  const toggleLike = (track: Track) => {
     const isQuran = activeMode === 'quran';
     if (isQuran) {
-      setQuranLikes(prev => 
-        prev.includes(trackId) 
-          ? prev.filter(id => id !== trackId) 
-          : [...prev, trackId]
-      );
+      setQuranLikes(prev => {
+        const exists = prev.includes(track.id);
+        if (exists) {
+          setLikedQuranTracks(prevTracks => prevTracks.filter(t => t.id !== track.id));
+          return prev.filter(id => id !== track.id);
+        } else {
+          setLikedQuranTracks(prevTracks => [...prevTracks, track]);
+          return [...prev, track.id];
+        }
+      });
     } else {
-      setLikes(prev => 
-        prev.includes(trackId) 
-          ? prev.filter(id => id !== trackId) 
-          : [...prev, trackId]
-      );
+      setLikes(prev => {
+        const exists = prev.includes(track.id);
+        if (exists) {
+          setLikedNasheedTracks(prevTracks => prevTracks.filter(t => t.id !== track.id));
+          return prev.filter(id => id !== track.id);
+        } else {
+          setLikedNasheedTracks(prevTracks => [...prevTracks, track]);
+          return [...prev, track.id];
+        }
+      });
     }
   };
 
@@ -742,6 +755,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const contextCurrentIndex = activeMode === 'nasheed' ? currentIndex : quranCurrentIndex;
   const contextLikes = activeMode === 'nasheed' ? likes : quranLikes;
   const contextHistory = activeMode === 'nasheed' ? history : quranHistory;
+  const contextLikedTracks = activeMode === 'nasheed' ? likedNasheedTracks : likedQuranTracks;
 
   const contextValue = React.useMemo(() => ({
     tracks: contextTracks,
@@ -751,6 +765,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     queue: contextQueue,
     currentIndex: contextCurrentIndex,
     likes: contextLikes,
+    likedTracks: contextLikedTracks,
     history: contextHistory,
     isShuffle,
     isRepeat,
@@ -788,6 +803,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     contextQueue,
     contextCurrentIndex,
     contextLikes,
+    contextLikedTracks,
     contextHistory,
     isShuffle,
     isRepeat,
@@ -800,6 +816,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     customQueue,
     quranCustomQueue,
     searchNasheeds,
+    likedNasheedTracks,
+    likedQuranTracks,
   ]);
 
   const progressValue = React.useMemo(() => ({

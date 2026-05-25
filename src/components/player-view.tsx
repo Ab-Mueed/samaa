@@ -421,7 +421,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
               <Icons.Repeat size={22} color={isRepeat ? theme.primary : 'rgba(255,255,255,0.5)'} />
             </Pressable>
 
-            <Pressable onPress={() => toggleLike(currentTrack.id)} style={styles.footerIconBtn}>
+            <Pressable onPress={() => toggleLike(currentTrack)} style={styles.footerIconBtn}>
               {isLiked ? (
                 <Icons.Heart size={22} color="#E03B3B" fill="#E03B3B" />
               ) : (

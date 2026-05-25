@@ -9,7 +9,8 @@ import {
   FlatList,
   Platform,
   Dimensions,
-  Animated
+  Animated,
+  ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -34,7 +35,7 @@ const PRESET_THEMES: { id: ThemeAccent; name: string; color: string }[] = [
 ];
 
 export default function SearchScreen() {
-  const { playTrack, likes, themeAccent, setThemeAccent, tracks, activeMode, addToQueue, searchNasheeds } = usePlayer();
+  const { playTrack, likes, themeAccent, setThemeAccent, tracks, activeMode, addToQueue, searchNasheeds, toggleLike, likedTracks } = usePlayer();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -78,9 +79,11 @@ export default function SearchScreen() {
   const setRecentSearches = activeMode === 'quran' ? setRecentSearchesQuran : setRecentSearchesNasheed;
 
   const [filteredTracks, setFilteredTracks] = useState<Track[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (activeMode === 'quran') {
+      setIsSearching(false);
       const qFiltered = query.trim()
         ? tracks.filter(track => {
             const isQuranTrack = track.id.startsWith('quran_');
@@ -95,11 +98,17 @@ export default function SearchScreen() {
     } else {
       if (!query.trim()) {
         setFilteredTracks([]);
+        setIsSearching(false);
         return;
       }
+      setIsSearching(true);
       const delayDebounce = setTimeout(async () => {
-        const results = await searchNasheeds(query);
-        setFilteredTracks(results);
+        try {
+          const results = await searchNasheeds(query);
+          setFilteredTracks(results);
+        } finally {
+          setIsSearching(false);
+        }
       }, 400);
       return () => clearTimeout(delayDebounce);
     }
@@ -142,19 +151,38 @@ export default function SearchScreen() {
             {item.artist} • {item.album}
           </ThemedText>
         </View>
-        <Pressable 
-          onPress={(e) => {
-            e.stopPropagation();
-            addToQueue(item);
-            triggerToast(`"${item.title}" added to queue`);
-          }}
-          style={({ pressed }) => [
-            { padding: Spacing.two, borderRadius: 20 },
-            pressed && { backgroundColor: theme.primary + '15' }
-          ]}
-        >
-          <Icons.Queue size={20} color={theme.textSecondary} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: Spacing.one }}>
+          <Pressable 
+            onPress={(e) => {
+              e.stopPropagation();
+              toggleLike(item);
+              triggerToast(likes.includes(item.id) ? `Removed from Favorites` : `Added to Favorites`);
+            }}
+            style={({ pressed }) => [
+              { padding: Spacing.two, borderRadius: 20 },
+              pressed && { backgroundColor: theme.primary + '15' }
+            ]}
+          >
+            <Icons.Heart 
+              size={20} 
+              color={isLiked ? "#E03B3B" : theme.textSecondary} 
+              fill={isLiked ? "#E03B3B" : "transparent"}
+            />
+          </Pressable>
+          <Pressable 
+            onPress={(e) => {
+              e.stopPropagation();
+              addToQueue(item);
+              triggerToast(`"${item.title}" added to queue`);
+            }}
+            style={({ pressed }) => [
+              { padding: Spacing.two, borderRadius: 20 },
+              pressed && { backgroundColor: theme.primary + '15' }
+            ]}
+          >
+            <Icons.Queue size={20} color={theme.textSecondary} />
+          </Pressable>
+        </View>
       </Pressable>
     );
   };
@@ -169,12 +197,17 @@ export default function SearchScreen() {
             placeholder={activeMode === 'quran' ? "Search Surahs..." : "Search Nasheeds, artists..."}
             placeholderTextColor={`${theme.textSecondary}80`}
             value={query}
-            onChangeText={setQuery}
+            onChangeText={(text) => {
+              setQuery(text);
+              if (activeMode === 'nasheed') {
+                setIsSearching(text.trim().length > 0);
+              }
+            }}
             onSubmitEditing={handleSearchSubmit}
             style={[styles.searchInput, { color: theme.text }]}
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} style={styles.clearBtn}>
+            <Pressable onPress={() => { setQuery(''); setIsSearching(false); }} style={styles.clearBtn}>
               <ThemedText style={{ color: theme.textSecondary, fontWeight: 'bold' }}>✕</ThemedText>
             </Pressable>
           )}
@@ -231,9 +264,14 @@ export default function SearchScreen() {
           /* Search Results Listing */
           <View style={styles.sectionContainer}>
             <ThemedText style={styles.sectionTitle}>
-              Search Results ({filteredTracks.length})
+              Search Results {filteredTracks.length > 0 ? `(${filteredTracks.length})` : ''}
             </ThemedText>
-            {filteredTracks.length > 0 ? (
+            {isSearching ? (
+              <View style={{ paddingVertical: Spacing.five, alignItems: 'center', gap: Spacing.two }}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <ThemedText type="small" themeColor="textSecondary">Searching YouTube...</ThemedText>
+              </View>
+            ) : filteredTracks.length > 0 ? (
               <FlatList
                 data={filteredTracks}
                 keyExtractor={(item) => item.id}
