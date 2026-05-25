@@ -7,7 +7,6 @@ import {
   TextInput, 
   Modal, 
   Dimensions, 
-  SafeAreaView,
   Platform,
   Animated,
   Easing
@@ -21,7 +20,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
 import { Spacing, MaxContentWidth, ThemeAccent } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -38,7 +37,8 @@ export default function HomeScreen() {
     setActiveReciter, 
     quranReciters, 
     isSwitchingMode,
-    addToQueue
+    addToQueue,
+    searchNasheeds
   } = usePlayer();
   
   const theme = useTheme();
@@ -96,12 +96,30 @@ export default function HomeScreen() {
     setSearchQuery('');
   }, [activeMode]);
 
-  // Filter tracks based on search query
-  const filteredTracks = tracks.filter(t => 
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.album.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [filteredTracks, setFilteredTracks] = useState<Track[]>([]);
+
+  useEffect(() => {
+    if (activeMode === 'quran') {
+      const qFiltered = searchQuery.trim()
+        ? tracks.filter(t => 
+            t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.album.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : [];
+      setFilteredTracks(qFiltered);
+    } else {
+      if (!searchQuery.trim()) {
+        setFilteredTracks([]);
+        return;
+      }
+      const delayDebounce = setTimeout(async () => {
+        const results = await searchNasheeds(searchQuery);
+        setFilteredTracks(results);
+      }, 400);
+      return () => clearTimeout(delayDebounce);
+    }
+  }, [searchQuery, activeMode, tracks]);
 
   // Generate random track for shuffle play
   const playRandomTrack = () => {
@@ -117,7 +135,7 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.safeArea}>
         
         {/* CAPSULE SEARCH BAR */}
-        <View style={[styles.searchContainer, { paddingTop: Math.max(Spacing.two, insets.top) }]}>
+        <View style={[styles.searchContainer, { paddingTop: Spacing.two }]}>
           <View style={[styles.searchCapsule, { backgroundColor: theme.backgroundElement }]}>
             <Icons.Search size={20} color={theme.textSecondary} style={styles.searchIcon} />
             <TextInput

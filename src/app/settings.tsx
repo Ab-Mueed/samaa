@@ -5,12 +5,11 @@ import {
   TextInput, 
   Pressable, 
   ScrollView, 
-  SafeAreaView, 
   Dimensions, 
   Platform,
   Modal
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { usePlayer } from '@/context/player-context';
 import { useTheme } from '@/hooks/use-theme';
@@ -40,7 +39,7 @@ export default function SettingsScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={[styles.header, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
+        <View style={[styles.header, { paddingTop: Spacing.three }]}>
           <Pressable 
             onPress={() => router.back()} 
             style={({ pressed }) => [

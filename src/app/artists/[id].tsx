@@ -4,13 +4,12 @@ import {
   View, 
   ScrollView, 
   Pressable, 
-  SafeAreaView, 
   Dimensions,
   Share,
   Platform,
   BackHandler
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { usePlayer, Track } from '@/context/player-context';

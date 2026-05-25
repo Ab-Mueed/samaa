@@ -4,7 +4,6 @@ import {
   View, 
   ScrollView, 
   Pressable,
-  SafeAreaView,
   Modal,
   TextInput
 } from 'react-native';
@@ -15,7 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 
 interface CustomPlaylist {
   id: string;
@@ -66,7 +65,7 @@ export default function PlaylistsScreen() {
       <SafeAreaView style={styles.safeArea}>
         
         {/* HEADER */}
-        <View style={[styles.header, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
+        <View style={[styles.header, { paddingTop: Spacing.three }]}>
           <ThemedText type="subtitle" style={styles.headerTitle}>Spiritual Playlists</ThemedText>
           <Pressable 
             onPress={() => setShowCreateModal(true)} 

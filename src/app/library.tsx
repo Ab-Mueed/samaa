@@ -6,10 +6,9 @@ import {
   Pressable, 
   Modal, 
   TextInput,
-  Dimensions,
-  SafeAreaView
+  Dimensions
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { usePlayer, Track } from '@/context/player-context';
@@ -73,7 +72,7 @@ export default function LibraryScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         
-        <View style={[styles.header, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
+        <View style={[styles.header, { paddingTop: Spacing.three }]}>
           <ThemedText style={styles.headerTitle}>{activeMode === 'quran' ? 'Quran Library' : 'Nasheed Library'}</ThemedText>
         </View>
 

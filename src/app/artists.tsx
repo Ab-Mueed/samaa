@@ -3,8 +3,7 @@ import {
   StyleSheet, 
   View, 
   ScrollView, 
-  Pressable,
-  SafeAreaView
+  Pressable
 } from 'react-native';
 import { Image } from 'expo-image';
 import { usePlayer } from '@/context/player-context';
@@ -14,7 +13,7 @@ import { Icons } from '@/components/icons';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ArtistsScreen() {
   const { tracks } = usePlayer();
@@ -53,7 +52,7 @@ export default function ArtistsScreen() {
       <SafeAreaView style={styles.safeArea}>
         
         {/* HEADER */}
-        <View style={[styles.header, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
+        <View style={[styles.header, { paddingTop: Spacing.three }]}>
           <ThemedText type="subtitle" style={styles.headerTitle}>Spiritual Chanters</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             Discover {artists.length} featured vocal artists

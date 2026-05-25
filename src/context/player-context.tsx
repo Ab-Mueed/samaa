@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { ThemeAccent } from '@/constants/theme';
 import { QuranReciter, PRESET_RECITERS, QuranService } from '@/services/quran-service';
+import { NasheedService } from '@/services/nasheed-service';
 
 export interface LyricLine {
   time: number; // in seconds
@@ -57,6 +58,7 @@ export interface PlayerContextProps {
   quranReciters: QuranReciter[];
   isSwitchingMode: boolean;
   quranTracks: Track[];
+  searchNasheeds: (query: string) => Promise<Track[]>;
 }
 
 export interface PlayerProgressContextProps {
@@ -67,140 +69,11 @@ export interface PlayerProgressContextProps {
 
 export const PlayerProgressContext = createContext<PlayerProgressContextProps | undefined>(undefined);
 
-export const MOCK_TRACKS: Track[] = [
-  {
-    id: '1',
-    title: 'Hasbi Rabbi',
-    artist: 'Sami Yusuf',
-    album: 'Al-Mu`allim',
-    duration: 247,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=500&q=80',
-    lyrics: [
-      { time: 0, text: "♪ (Vocal Intro)" },
-      { time: 4, text: "Hasbi rabbi jallallah", translation: "Sufficient is my Lord, glorified is Allah" },
-      { time: 9, text: "Ma fi qalbi ghayrullah", translation: "In my heart there is none except Allah" },
-      { time: 14, text: "Alal hadi sallallah", translation: "Upon the Guide (Prophet Muhammad), peace be from Allah" },
-      { time: 19, text: "La ilaha illallah", translation: "There is no deity worthy of worship but Allah" },
-      { time: 24, text: "O Allah, protect and guide me", translation: "O Allah, protect and guide me" },
-      { time: 29, text: "Keep me close to Your side", translation: "Keep me close to Your side" },
-      { time: 34, text: "Direct me and light my way", translation: "Direct me and light my way" },
-      { time: 39, text: "Let me see the brand new day", translation: "Let me see the brand new day" },
-      { time: 44, text: "In Your love, I find my peace", translation: "In Your love, I find my peace" },
-      { time: 49, text: "All my worries find release", translation: "All my worries find release" },
-      { time: 54, text: "Hasbi rabbi jallallah", translation: "Sufficient is my Lord, glorified is Allah" },
-      { time: 59, text: "Ma fi qalbi ghayrullah", translation: "In my heart there is none except Allah" },
-      { time: 64, text: "Alal hadi sallallah", translation: "Upon the Guide, peace be from Allah" },
-      { time: 69, text: "La ilaha illallah", translation: "There is no deity worthy of worship but Allah" },
-      { time: 74, text: "♪ (Spiritual Chants)" },
-      { time: 94, text: "Ya Sayyidal Kawnayni", translation: "O master of the two worlds" },
-      { time: 99, text: "Ya Shafi`al Ummatayni", translation: "O intercessor for the two nations" },
-      { time: 104, text: "Sallallahu `alaika wa `ala alika", translation: "Peace and blessings be upon you and your family" },
-      { time: 109, text: "Hasbi rabbi jallallah", translation: "Sufficient is my Lord, glorified is Allah" },
-      { time: 114, text: "Ma fi qalbi ghayrullah", translation: "In my heart there is none except Allah" }
-    ]
-  },
-  {
-    id: '2',
-    title: 'Kun Anta',
-    artist: 'Humood AlKhudher',
-    album: 'Aseer Ahsan',
-    duration: 236,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=500&q=80',
-    lyrics: [
-      { time: 0, text: "♪ (Upbeat vocal harmony intro)" },
-      { time: 6, text: "Li-ajli an nurdiya-hum, na`tazilu ma yurdina", translation: "To please them, we give up what pleases us" },
-      { time: 13, text: "Nalbasu thawban la yulaimu-na, naqoolu ma la ya`nina", translation: "We wear clothes that don't suit us, we say what doesn't concern us" },
-      { time: 20, text: "Nutaba`i shayan ghairana, nattahimu wa nadh`an", translation: "We follow things unlike us, we suspect and yield" },
-      { time: 27, text: "Kayi nuzdada jamalan, nuqallidu aghla al-madha-hir", translation: "To increase our beauty, we copy the most expensive styles" },
-      { time: 33, text: "La la! La nahtaju al-ma-la, kayi nuzdada jamalan", translation: "No, no! We don't need wealth to increase our beauty" },
-      { time: 40, text: "Jawahiruna huna, fi al-qalbi tal-ala-la", translation: "Our gems are here, in the heart they shine" },
-      { time: 47, text: "La la! Nurdi al-nasi bimala, nardahu lana ha-la", translation: "No, no! We won't please people with what we don't satisfy in ourselves" },
-      { time: 54, text: "Sa-akunu ana, bima ardahu ana", translation: "I will be myself, exactly as I wish to be" },
-      { time: 60, text: "Sa-akunu ana, kun anta!", translation: "I will be myself, be yourself!" },
-      { time: 65, text: "♪ (Be yourself chorus)" },
-      { time: 75, text: "Kun anta tazdada jamalan", translation: "Be yourself, and you will increase in beauty" },
-      { time: 82, text: "Kun anta tazdada jamalan", translation: "Be yourself, and you will increase in beauty" }
-    ]
-  },
-  {
-    id: '3',
-    title: 'Rahman Ya Rahman',
-    artist: 'Mishari Rashid Alafasy',
-    album: 'Alafasy Vocal',
-    duration: 312,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1609599006353-e629aaabfeae?w=500&q=80',
-    lyrics: [
-      { time: 0, text: "♪ (Beautiful solo vocals)" },
-      { time: 5, text: "Rahman Ya Rahman, sa`idni Ya Rahman", translation: "O Most Beneficent, O Beneficent, help me O Beneficent" },
-      { time: 14, text: "Ishrah sadri Qur'an, imla' qalbi Qur'an", translation: "Expand my chest with the Qur'an, fill my heart with the Qur'an" },
-      { time: 24, text: "Wasqi `umri Qur'an", translation: "And water my life with the Qur'an" },
-      { time: 30, text: "Rahman Ya Rahman, sa`idni Ya Rahman", translation: "O Most Beneficent, O Beneficent, help me O Beneficent" },
-      { time: 39, text: "Lillah lillah, yahfo-dhu ah-dahu", translation: "For Allah's sake, he preserves His covenant" },
-      { time: 48, text: "Fa yuthabbita fihi waj-dahu", translation: "So his devotion is strengthened in it" },
-      { time: 57, text: "Sadun ya'ti sa`dahu, ghufra-nuka Rabbi", translation: "Happiness comes to his aid, Your forgiveness my Lord" },
-      { time: 66, text: "Rahman Ya Rahman, sa`idni Ya Rahman", translation: "O Most Beneficent, O Beneficent, help me O Beneficent" }
-    ]
-  },
-  {
-    id: '4',
-    title: 'The Way of the Tears',
-    artist: 'Muhammad al-Muqit',
-    album: 'Vocal Solitude',
-    duration: 288,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?w=500&q=80',
-    lyrics: [
-      { time: 0, text: "♪ (Soft, deep vocal echoing)" },
-      { time: 8, text: "Saraytu wa layli da-jin wa bah-mu", translation: "I walked while the night was dark and silent" },
-      { time: 17, text: "Wa dam`i ala al-khaddi yajri wa yas-ju", translation: "And my tears on my cheek were running and quiet" },
-      { time: 26, text: "Ilahi wa Rabbi `ubaydun faqeer", translation: "My God and my Lord, a needy little servant" },
-      { time: 35, text: "Mura-dahu `afwun wa saf-hun jameel", translation: "Whose only desire is Your beautiful pardon and forgiveness" },
-      { time: 45, text: "Fa ya Rabbi thabbit `ala al-haqqi qalbi", translation: "So my Lord, keep my heart firm on the truth" },
-      { time: 54, text: "Wa ghfir dhunoobi wa sahhil matee", translation: "And forgive my sins and ease my path" }
-    ]
-  },
-  {
-    id: '5',
-    title: 'Mawlaya',
-    artist: 'Maher Zain',
-    album: 'Forgive Me',
-    duration: 295,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?w=500&q=80',
-    lyrics: [
-      { time: 0, text: "♪ (Maher Zain intro harmonies)" },
-      { time: 6, text: "Mawlaya salli wa sallim da'iman abadan", translation: "O My Lord, send peace and blessings always and forever" },
-      { time: 14, text: "`Ala Habibika Khayril khalqi kullihimi", translation: "Upon Your Beloved, the best of all creation" },
-      { time: 22, text: "Mawlaya salli wa sallim da'iman abadan", translation: "O My Lord, send peace and blessings always and forever" },
-      { time: 30, text: "`Ala Habibika Khayril khalqi kullihimi", translation: "Upon Your Beloved, the best of all creation" },
-      { time: 38, text: "Ya Rabbil Mustafa balligh maqasidana", translation: "O Lord of the Chosen One, let us reach our goals" },
-      { time: 46, text: "Wa ghfir lana ma mada, Ya Wasi`al karami", translation: "And forgive our past, O Owner of infinite generosity" }
-    ]
-  },
-  {
-    id: '6',
-    title: 'Qamarun',
-    artist: 'Mustafa Atef',
-    album: 'Qamarun Sidna',
-    duration: 275,
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?w=500&q=80',
-    lyrics: [
-      { time: 0, text: "♪ (Bright chanting intro)" },
-      { time: 5, text: "Qamarun, Qamarun, Qamarun Sidna Nabi, Qamarun", translation: "Beautiful like a moon, is our master the Prophet" },
-      { time: 13, text: "Wa jameel, wa jameel, wa jameel Sidna Nabi, wa jameel", translation: "And elegant, so elegant, is our Prophet Muhammad" },
-      { time: 21, text: "Wa kafful Mustafa kal wardi nadi", translation: "And the hand of the Chosen One is like a blooming rose" },
-      { time: 28, text: "Wa `itruha yabqa idha massat ayadi", translation: "And its sweet fragrance lingers when touched by hands" },
-      { time: 36, text: "Wa `amma nawaluha kullal `ibadi", translation: "And his generosity covers all mankind" },
-      { time: 43, text: "Qamarun, Qamarun, Qamarun Sidna Nabi, Qamarun", translation: "Beautiful like a moon, is our master the Prophet" }
-    ]
-  }
-];
-
 const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
+
+const getRandomIndex = (length: number): number => {
+  return Math.floor(Math.random() * length);
+};
 
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // NEW MODE SEPARATED STATES
@@ -208,6 +81,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isSwitchingMode, setIsSwitchingMode] = useState<boolean>(false);
   const [activeReciter, setActiveReciterState] = useState<QuranReciter>(PRESET_RECITERS[0]);
   const [quranTracks, setQuranTracks] = useState<Track[]>([]);
+  const [nasheedTracks, setNasheedTracks] = useState<Track[]>([]);
 
   // Sandbox 1: Nasheed States
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
@@ -257,6 +131,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const quranCurrentTrackRef = useRef<Track | null>(null);
   const isShuffleRef = useRef<boolean>(false);
   const isRepeatRef = useRef<boolean>(false);
+  const nasheedTracksRef = useRef<Track[]>([]);
 
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { quranQueueRef.current = quranQueue; }, [quranQueue]);
@@ -268,6 +143,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { quranCurrentTrackRef.current = quranCurrentTrack; }, [quranCurrentTrack]);
   useEffect(() => { isShuffleRef.current = isShuffle; }, [isShuffle]);
   useEffect(() => { isRepeatRef.current = isRepeat; }, [isRepeat]);
+  useEffect(() => { nasheedTracksRef.current = nasheedTracks; }, [nasheedTracks]);
 
   // Audio Driver references
   const nativePlayerRef = useRef<any>(null);
@@ -289,10 +165,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Dynamic Initial Quran Tracks Fetch
     loadQuranTracks(activeReciter);
 
+    // Initial Trending Nasheeds Fetch
+    loadNasheedTracks();
+
     return () => {
       cleanupDrivers();
     };
   }, []);
+
+  const loadNasheedTracks = async () => {
+    const list = await NasheedService.fetchTrending();
+    setNasheedTracks(list);
+  };
 
   // Fetch and format Quran Surahs dynamically when active reciter changes
   const loadQuranTracks = async (reciter: QuranReciter) => {
@@ -348,7 +232,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, 600);
   };
 
-  const cleanupDrivers = () => {
+  function cleanupDrivers() {
     if (webAudioRef.current) {
       webAudioRef.current.pause();
       webAudioRef.current = null;
@@ -366,7 +250,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       nativePlayerRef.current = null;
     }
-  };
+  }
 
   // Keep track of web time progress
   const startWebTimer = () => {
@@ -430,7 +314,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const playTrack = (track: Track) => {
+  const playTrack = async (track: Track) => {
     cleanupDrivers();
     const isQuran = activeMode === 'quran';
 
@@ -464,7 +348,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (qIndex !== -1) {
         setCurrentIndex(qIndex);
       } else {
-        const trackIndex = MOCK_TRACKS.findIndex(t => t.id === track.id);
+        const trackIndex = nasheedTracksRef.current.findIndex(t => t.id === track.id);
         setCurrentIndex(trackIndex);
       }
 
@@ -474,9 +358,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     }
 
+    // RESOLVE NASHEED STREAM URL DYNAMICALLY
+    let playbackUrl = track.audioUrl;
+    if (!isQuran && track.id && !track.id.startsWith('mock_')) {
+      const resolvedUrl = await NasheedService.fetchStreamUrl(track.id);
+      if (resolvedUrl) {
+        playbackUrl = resolvedUrl;
+      }
+    }
+
     if (Platform.OS === 'web') {
       try {
-        const audio = new window.Audio(track.audioUrl);
+        const audio = new window.Audio(playbackUrl);
         audio.play().then(() => {
           if (isQuran) {
             setQuranIsPlaying(true);
@@ -504,7 +397,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     } else {
       try {
-        const player = createAudioPlayer(track.audioUrl);
+        const player = createAudioPlayer(playbackUrl);
         player.setActiveForLockScreen(true, {
           title: track.title,
           artist: track.artist,
@@ -673,14 +566,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // 2. Fall back to the contextual list (either activeQueue or full category tracks)
     const activeQueue = isQuran ? quranQueueRef.current : queueRef.current;
-    const fallbackList = activeQueue.length > 0 ? activeQueue : (isQuran ? quranTracks : MOCK_TRACKS);
+    const fallbackList = activeQueue.length > 0 ? activeQueue : (isQuran ? quranTracks : nasheedTracksRef.current);
     const activeIndex = isQuran ? quranCurrentIndexRef.current : currentIndexRef.current;
 
     if (fallbackList.length === 0) return;
 
     let nextIndex = activeIndex + 1;
     if (isShuffleRef.current) {
-      nextIndex = Math.floor(Math.random() * fallbackList.length);
+      nextIndex = getRandomIndex(fallbackList.length);
     } else if (nextIndex >= fallbackList.length) {
       nextIndex = 0; // loop/restart
     }
@@ -699,7 +592,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     const activeQueue = isQuran ? quranQueueRef.current : queueRef.current;
-    const fallbackList = activeQueue.length > 0 ? activeQueue : (isQuran ? quranTracks : MOCK_TRACKS);
+    const fallbackList = activeQueue.length > 0 ? activeQueue : (isQuran ? quranTracks : nasheedTracksRef.current);
     const activeIndex = isQuran ? quranCurrentIndexRef.current : currentIndexRef.current;
 
     if (fallbackList.length === 0) return;
@@ -834,8 +727,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const searchNasheeds = async (query: string): Promise<Track[]> => {
+    return await NasheedService.search(query);
+  };
+
   // Map dynamic values based on the currently active mode sandbox
-  const contextTracks = activeMode === 'nasheed' ? MOCK_TRACKS : quranTracks;
+  const contextTracks = activeMode === 'nasheed' ? nasheedTracks : quranTracks;
   const contextCurrentTrack = activeMode === 'nasheed' ? currentTrack : quranCurrentTrack;
   const contextIsPlaying = activeMode === 'nasheed' ? isPlaying : quranIsPlaying;
   const contextIsBuffering = activeMode === 'nasheed' ? isBuffering : quranIsBuffering;
@@ -882,6 +779,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     quranReciters: PRESET_RECITERS,
     isSwitchingMode,
     quranTracks,
+    searchNasheeds,
   }), [
     contextTracks,
     contextCurrentTrack,
@@ -901,6 +799,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     quranTracks,
     customQueue,
     quranCustomQueue,
+    searchNasheeds,
   ]);
 
   const progressValue = React.useMemo(() => ({

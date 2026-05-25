@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -34,7 +34,7 @@ const PRESET_THEMES: { id: ThemeAccent; name: string; color: string }[] = [
 ];
 
 export default function SearchScreen() {
-  const { playTrack, likes, themeAccent, setThemeAccent, tracks, activeMode, addToQueue } = usePlayer();
+  const { playTrack, likes, themeAccent, setThemeAccent, tracks, activeMode, addToQueue, searchNasheeds } = usePlayer();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -77,18 +77,33 @@ export default function SearchScreen() {
   const recentSearches = activeMode === 'quran' ? recentSearchesQuran : recentSearchesNasheed;
   const setRecentSearches = activeMode === 'quran' ? setRecentSearchesQuran : setRecentSearchesNasheed;
 
-  // Filtered tracks based on search query with absolute strict sandbox boundaries
-  const filteredTracks = query.trim()
-    ? tracks.filter(track => {
-        const isQuranTrack = track.id.startsWith('quran_');
-        const modeMatches = activeMode === 'quran' ? isQuranTrack : !isQuranTrack;
-        if (!modeMatches) return false;
-        
-        return track.title.toLowerCase().includes(query.toLowerCase()) ||
-               track.artist.toLowerCase().includes(query.toLowerCase()) ||
-               track.album.toLowerCase().includes(query.toLowerCase());
-      })
-    : [];
+  const [filteredTracks, setFilteredTracks] = useState<Track[]>([]);
+
+  useEffect(() => {
+    if (activeMode === 'quran') {
+      const qFiltered = query.trim()
+        ? tracks.filter(track => {
+            const isQuranTrack = track.id.startsWith('quran_');
+            if (!isQuranTrack) return false;
+            
+            return track.title.toLowerCase().includes(query.toLowerCase()) ||
+                   track.artist.toLowerCase().includes(query.toLowerCase()) ||
+                   track.album.toLowerCase().includes(query.toLowerCase());
+          })
+        : [];
+      setFilteredTracks(qFiltered);
+    } else {
+      if (!query.trim()) {
+        setFilteredTracks([]);
+        return;
+      }
+      const delayDebounce = setTimeout(async () => {
+        const results = await searchNasheeds(query);
+        setFilteredTracks(results);
+      }, 400);
+      return () => clearTimeout(delayDebounce);
+    }
+  }, [query, activeMode, tracks]);
 
   const displayBrowseTracks = tracks.filter(track => {
     const isQuranTrack = track.id.startsWith('quran_');

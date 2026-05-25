@@ -5,8 +5,7 @@ import {
   ScrollView, 
   Pressable, 
   TextInput,
-  Modal,
-  SafeAreaView
+  Modal
 } from 'react-native';
 import { Image } from 'expo-image';
 import { usePlayer, Track } from '@/context/player-context';
@@ -16,7 +15,7 @@ import { Icons } from '@/components/icons';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 
 type FilterType = 'all' | 'vocal' | 'liked';
 
@@ -69,7 +68,7 @@ export default function SongsScreen() {
       <SafeAreaView style={styles.safeArea}>
         
         {/* HEADER */}
-        <View style={[styles.header, { paddingTop: Math.max(Spacing.three, insets.top) }]}>
+        <View style={[styles.header, { paddingTop: Spacing.three }]}>
           <ThemedText type="subtitle" style={styles.headerTitle}>All Nasheeds</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             {filteredTracks.length} spiritual tracks

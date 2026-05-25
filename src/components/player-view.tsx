@@ -13,13 +13,12 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   View,
   PanResponder
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Icons } from './icons';
 import { ThemedText } from './themed-text';
 
@@ -282,7 +281,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.playerBackground || '#2C2120' }]}>
 
           {/* TOP CONTROLS */}
-          <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
+          <View style={[styles.header, { height: 56 }]}>
             <Pressable onPress={onClose} style={[styles.headerBtnSquare, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
               <Icons.ChevronDown size={24} color="#FFFFFF" />
             </Pressable>
