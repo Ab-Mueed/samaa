@@ -216,6 +216,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [position, setPosition] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [queue, setQueue] = useState<Track[]>([]);
+  const [customQueue, setCustomQueue] = useState<Track[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [likes, setLikes] = useState<string[]>([]);
   const [history, setHistory] = useState<string[]>([]);
@@ -227,6 +228,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [quranPosition, setQuranPosition] = useState<number>(0);
   const [quranDuration, setQuranDuration] = useState<number>(0);
   const [quranQueue, setQuranQueue] = useState<Track[]>([]);
+  const [quranCustomQueue, setQuranCustomQueue] = useState<Track[]>([]);
   const [quranCurrentIndex, setQuranCurrentIndex] = useState<number>(-1);
   const [quranLikes, setQuranLikes] = useState<string[]>([]);
   const [quranHistory, setQuranHistory] = useState<string[]>([]);
@@ -243,6 +245,29 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     activeModeRef.current = activeMode;
   }, [activeMode]);
+
+  // References to avoid stale closures in active tickers
+  const queueRef = useRef<Track[]>([]);
+  const quranQueueRef = useRef<Track[]>([]);
+  const customQueueRef = useRef<Track[]>([]);
+  const quranCustomQueueRef = useRef<Track[]>([]);
+  const currentIndexRef = useRef<number>(-1);
+  const quranCurrentIndexRef = useRef<number>(-1);
+  const currentTrackRef = useRef<Track | null>(null);
+  const quranCurrentTrackRef = useRef<Track | null>(null);
+  const isShuffleRef = useRef<boolean>(false);
+  const isRepeatRef = useRef<boolean>(false);
+
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { quranQueueRef.current = quranQueue; }, [quranQueue]);
+  useEffect(() => { customQueueRef.current = customQueue; }, [customQueue]);
+  useEffect(() => { quranCustomQueueRef.current = quranCustomQueue; }, [quranCustomQueue]);
+  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+  useEffect(() => { quranCurrentIndexRef.current = quranCurrentIndex; }, [quranCurrentIndex]);
+  useEffect(() => { currentTrackRef.current = currentTrack; }, [currentTrack]);
+  useEffect(() => { quranCurrentTrackRef.current = quranCurrentTrack; }, [quranCurrentTrack]);
+  useEffect(() => { isShuffleRef.current = isShuffle; }, [isShuffle]);
+  useEffect(() => { isRepeatRef.current = isRepeat; }, [isRepeat]);
 
   // Audio Driver references
   const nativePlayerRef = useRef<any>(null);
@@ -290,6 +315,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // Dynamically update existing custom queue tracks to map to the new reciter's server URLs
     setQuranQueue(prev => prev.map(track => {
+      const surahNum = parseInt(track.id.split('_').pop() || '1');
+      const matching = loadedList.find(t => t.id.endsWith(`_${surahNum}`));
+      return matching ? matching : track;
+    }));
+    setQuranCustomQueue(prev => prev.map(track => {
       const surahNum = parseInt(track.id.split('_').pop() || '1');
       const matching = loadedList.find(t => t.id.endsWith(`_${surahNum}`));
       return matching ? matching : track;
@@ -392,7 +422,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const handleTrackFinished = () => {
-    if (isRepeat) {
+    if (isRepeatRef.current) {
       seekTo(0);
       resumeAudio();
     } else {
@@ -415,10 +445,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (qIndex !== -1) {
         setQuranCurrentIndex(qIndex);
       } else {
-        const newQueue = [...quranQueue];
-        newQueue.push(track);
-        setQuranQueue(newQueue);
-        setQuranCurrentIndex(newQueue.length - 1);
+        const trackIndex = quranTracks.findIndex(t => t.id === track.id);
+        setQuranCurrentIndex(trackIndex);
       }
 
       setQuranHistory(prev => {
@@ -436,10 +464,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (qIndex !== -1) {
         setCurrentIndex(qIndex);
       } else {
-        const newQueue = [...queue];
-        newQueue.push(track);
-        setQueue(newQueue);
-        setCurrentIndex(newQueue.length - 1);
+        const trackIndex = MOCK_TRACKS.findIndex(t => t.id === track.id);
+        setCurrentIndex(trackIndex);
       }
 
       setHistory(prev => {
@@ -533,7 +559,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const resumeAudio = () => {
-    const isQuran = activeMode === 'quran';
+    const isQuran = activeModeRef.current === 'quran';
     if (isQuran) {
       setQuranIsPlaying(true);
     } else {
@@ -548,7 +574,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         webAudioRef.current.play().catch(e => console.log(e));
         startWebTimer();
       } else {
-        const track = isQuran ? quranCurrentTrack : currentTrack;
+        const track = isQuran ? quranCurrentTrackRef.current : currentTrackRef.current;
         if (track) mockPlayTimer(track.duration);
       }
     } else {
@@ -561,7 +587,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         nativePlayerRef.current.play();
         startNativeTimer(nativePlayerRef.current);
       } else {
-        const track = isQuran ? quranCurrentTrack : currentTrack;
+        const track = isQuran ? quranCurrentTrackRef.current : currentTrackRef.current;
         if (track) mockPlayTimer(track.duration);
       }
     }
@@ -615,35 +641,75 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const nextTrack = () => {
-    const isQuran = activeMode === 'quran';
-    const activeQueue = isQuran ? quranQueue : queue;
-    const activeIndex = isQuran ? quranCurrentIndex : currentIndex;
+    const isQuran = activeModeRef.current === 'quran';
+    const activeCustomQueue = isQuran ? quranCustomQueueRef.current : customQueueRef.current;
+    const currentTrackObj = isQuran ? quranCurrentTrackRef.current : currentTrackRef.current;
 
-    if (activeQueue.length === 0) return;
+    // 1. Explicit Custom Queue takes priority
+    if (activeCustomQueue.length > 0) {
+      const isCurrentFromQueue = currentTrackObj && currentTrackObj.id === activeCustomQueue[0].id;
 
-    let nextIndex = activeIndex + 1;
-    if (isShuffle) {
-      nextIndex = Math.floor(Math.random() * activeQueue.length);
-    } else if (nextIndex >= activeQueue.length) {
-      nextIndex = 0; // loop queue
+      if (isCurrentFromQueue) {
+        // Remove played track from the custom queue
+        const nextCustomQueue = activeCustomQueue.slice(1);
+        if (isQuran) {
+          setQuranCustomQueue(nextCustomQueue);
+        } else {
+          setCustomQueue(nextCustomQueue);
+        }
+
+        if (nextCustomQueue.length > 0) {
+          playTrack(nextCustomQueue[0]);
+        } else {
+          // Once the queue is empty, the last track finishes and playback stops
+          pauseAudio();
+        }
+      } else {
+        // Play the first item in custom queue without slicing
+        playTrack(activeCustomQueue[0]);
+      }
+      return;
     }
 
-    playTrack(activeQueue[nextIndex]);
+    // 2. Fall back to the contextual list (either activeQueue or full category tracks)
+    const activeQueue = isQuran ? quranQueueRef.current : queueRef.current;
+    const fallbackList = activeQueue.length > 0 ? activeQueue : (isQuran ? quranTracks : MOCK_TRACKS);
+    const activeIndex = isQuran ? quranCurrentIndexRef.current : currentIndexRef.current;
+
+    if (fallbackList.length === 0) return;
+
+    let nextIndex = activeIndex + 1;
+    if (isShuffleRef.current) {
+      nextIndex = Math.floor(Math.random() * fallbackList.length);
+    } else if (nextIndex >= fallbackList.length) {
+      nextIndex = 0; // loop/restart
+    }
+
+    playTrack(fallbackList[nextIndex]);
   };
 
   const prevTrack = () => {
-    const isQuran = activeMode === 'quran';
-    const activeQueue = isQuran ? quranQueue : queue;
-    const activeIndex = isQuran ? quranCurrentIndex : currentIndex;
+    const isQuran = activeModeRef.current === 'quran';
+    const activeCustomQueue = isQuran ? quranCustomQueueRef.current : customQueueRef.current;
 
-    if (activeQueue.length === 0) return;
+    if (activeCustomQueue.length > 0) {
+      // Seeking to 0 is the most natural behavior for custom queue navigation
+      seekTo(0);
+      return;
+    }
+
+    const activeQueue = isQuran ? quranQueueRef.current : queueRef.current;
+    const fallbackList = activeQueue.length > 0 ? activeQueue : (isQuran ? quranTracks : MOCK_TRACKS);
+    const activeIndex = isQuran ? quranCurrentIndexRef.current : currentIndexRef.current;
+
+    if (fallbackList.length === 0) return;
 
     let prevIndex = activeIndex - 1;
     if (prevIndex < 0) {
-      prevIndex = activeQueue.length - 1; // loop backwards
+      prevIndex = fallbackList.length - 1; // loop backwards
     }
 
-    playTrack(activeQueue[prevIndex]);
+    playTrack(fallbackList[prevIndex]);
   };
 
   const seekTo = (seconds: number) => {
@@ -693,12 +759,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addToQueue = (track: Track) => {
     const isQuran = activeMode === 'quran';
     if (isQuran) {
-      if (!quranQueue.find(t => t.id === track.id)) {
-        setQuranQueue(prev => [...prev, track]);
+      if (!quranCustomQueue.find(t => t.id === track.id)) {
+        setQuranCustomQueue(prev => [...prev, track]);
       }
     } else {
-      if (!queue.find(t => t.id === track.id)) {
-        setQueue(prev => [...prev, track]);
+      if (!customQueue.find(t => t.id === track.id)) {
+        setCustomQueue(prev => [...prev, track]);
       }
     }
   };
@@ -706,32 +772,40 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const removeFromQueue = (trackId: string) => {
     const isQuran = activeMode === 'quran';
     if (isQuran) {
-      setQuranQueue(prev => {
-        const nextQueue = prev.filter(t => t.id !== trackId);
-        // Adjust currentIndex if necessary
-        const nextIndex = nextQueue.findIndex(t => t.id === quranCurrentTrack?.id);
-        setQuranCurrentIndex(nextIndex);
-        return nextQueue;
-      });
+      if (quranCustomQueue.length > 0) {
+        setQuranCustomQueue(prev => prev.filter(t => t.id !== trackId));
+      } else {
+        setQuranQueue(prev => {
+          const nextQueue = prev.filter(t => t.id !== trackId);
+          const nextIndex = nextQueue.findIndex(t => t.id === quranCurrentTrack?.id);
+          setQuranCurrentIndex(nextIndex);
+          return nextQueue;
+        });
+      }
     } else {
-      setQueue(prev => {
-        const nextQueue = prev.filter(t => t.id !== trackId);
-        // Adjust currentIndex if necessary
-        const nextIndex = nextQueue.findIndex(t => t.id === currentTrack?.id);
-        setCurrentIndex(nextIndex);
-        return nextQueue;
-      });
+      if (customQueue.length > 0) {
+        setCustomQueue(prev => prev.filter(t => t.id !== trackId));
+      } else {
+        setQueue(prev => {
+          const nextQueue = prev.filter(t => t.id !== trackId);
+          const nextIndex = nextQueue.findIndex(t => t.id === currentTrack?.id);
+          setCurrentIndex(nextIndex);
+          return nextQueue;
+        });
+      }
     }
   };
 
   const clearQueue = () => {
     const isQuran = activeMode === 'quran';
     if (isQuran) {
+      setQuranCustomQueue([]);
       setQuranQueue([]);
       setQuranCurrentIndex(-1);
       setQuranCurrentTrack(null);
       pauseAudio();
     } else {
+      setCustomQueue([]);
       setQueue([]);
       setCurrentIndex(-1);
       setCurrentTrack(null);
@@ -767,7 +841,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const contextIsBuffering = activeMode === 'nasheed' ? isBuffering : quranIsBuffering;
   const contextPosition = activeMode === 'nasheed' ? position : quranPosition;
   const contextDuration = activeMode === 'nasheed' ? duration : quranDuration;
-  const contextQueue = activeMode === 'nasheed' ? queue : quranQueue;
+  const contextQueue = activeMode === 'nasheed' ? customQueue : quranCustomQueue;
   const contextCurrentIndex = activeMode === 'nasheed' ? currentIndex : quranCurrentIndex;
   const contextLikes = activeMode === 'nasheed' ? likes : quranLikes;
   const contextHistory = activeMode === 'nasheed' ? history : quranHistory;
@@ -825,6 +899,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     activeReciter,
     isSwitchingMode,
     quranTracks,
+    customQueue,
+    quranCustomQueue,
   ]);
 
   const progressValue = React.useMemo(() => ({

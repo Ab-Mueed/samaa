@@ -16,7 +16,8 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  View
+  View,
+  PanResponder
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icons } from './icons';
@@ -74,6 +75,60 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const playScale = useRef(new Animated.Value(1)).current;
   const prevScale = useRef(new Animated.Value(1)).current;
   const nextScale = useRef(new Animated.Value(1)).current;
+
+  // PREMIUM SMOOTH SCRUBBING GESTURE CONTROLS
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubPosition, setScrubPosition] = useState(0);
+
+  const isScrubbingRef = useRef(false);
+  const scrubPositionRef = useRef(0);
+  const progressBarWidthRef = useRef(0);
+  const durationRef = useRef(duration);
+
+  useEffect(() => {
+    progressBarWidthRef.current = progressBarWidth;
+  }, [progressBarWidth]);
+
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
+
+  const updateScrubValue = (locationX: number) => {
+    const width = progressBarWidthRef.current;
+    const dur = durationRef.current;
+    if (width > 0 && dur > 0) {
+      const percentage = Math.max(0, Math.min(locationX / width, 1));
+      const targetSeconds = percentage * dur;
+      scrubPositionRef.current = targetSeconds;
+      setScrubPosition(targetSeconds);
+    }
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        const { locationX } = evt.nativeEvent;
+        isScrubbingRef.current = true;
+        setIsScrubbing(true);
+        updateScrubValue(locationX);
+      },
+      onPanResponderMove: (evt) => {
+        const { locationX } = evt.nativeEvent;
+        updateScrubValue(locationX);
+      },
+      onPanResponderRelease: () => {
+        seekTo(scrubPositionRef.current);
+        isScrubbingRef.current = false;
+        setIsScrubbing(false);
+      },
+      onPanResponderTerminate: () => {
+        isScrubbingRef.current = false;
+        setIsScrubbing(false);
+      },
+    })
+  ).current;
 
   // Handle Android physical back gesture
   useEffect(() => {
@@ -135,23 +190,13 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
     return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
   };
 
-  const handleProgressBarTouch = (e: any) => {
-    const { locationX } = e.nativeEvent;
-    if (progressBarWidth > 0 && duration > 0) {
-      const percentage = Math.max(0, Math.min(locationX / progressBarWidth, 1));
-      const targetSeconds = percentage * duration;
-      seekTo(targetSeconds);
-    }
-  };
-
-
-
   const startSleepTimer = (minutes: number) => {
     setSleepTimeRemaining(minutes * 60);
     setShowSleepTimer(false);
   };
 
-  const playedPercent = duration > 0 ? Math.max(0, Math.min(position / duration, 1)) : 0;
+  const activePosition = isScrubbing ? scrubPosition : position;
+  const playedPercent = duration > 0 ? Math.max(0, Math.min(activePosition / duration, 1)) : 0;
   const currentThumbX = playedPercent * progressBarWidth;
 
   // Elegant button press micro-interactions
@@ -242,7 +287,6 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
               <Icons.ChevronDown size={24} color="#FFFFFF" />
             </Pressable>
             <View style={styles.headerTitleContainer}>
-              <ThemedText style={styles.headerTitle}>Now Playing</ThemedText>
               {sleepTimeRemaining !== null && (
                 <ThemedText type="small" style={styles.sleepTimerCounter}>
                   Sleep: {formatTime(sleepTimeRemaining)}
@@ -287,8 +331,8 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
 
           {/* PREMIUM SLEEK PROGRESS SLIDER WITH VERTICAL SCRUB THUMB */}
           <View style={styles.progressContainer}>
-            <Pressable
-              onPress={handleProgressBarTouch}
+            <View
+              {...panResponder.panHandlers}
               onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
               style={styles.progressBarTrackWrapper}
             >
@@ -322,10 +366,10 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
                   }
                 ]}
               />
-            </Pressable>
+            </View>
 
             <View style={styles.timeLabelsRow}>
-              <ThemedText type="small" style={styles.timeLabel}>{formatTime(position)}</ThemedText>
+              <ThemedText type="small" style={styles.timeLabel}>{formatTime(activePosition)}</ThemedText>
               <ThemedText type="small" style={styles.timeLabel}>{formatTime(duration)}</ThemedText>
             </View>
           </View>
