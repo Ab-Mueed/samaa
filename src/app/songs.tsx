@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
   ScrollView, 
   Pressable, 
   TextInput,
-  Modal
+  Modal,
+  Animated
 } from 'react-native';
 import { Image } from 'expo-image';
 import { usePlayer, Track } from '@/context/player-context';
+import { AddToPlaylistModal } from '@/components/add-to-playlist-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
@@ -29,6 +31,29 @@ export default function SongsScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [trackForPlaylist, setTrackForPlaylist] = useState<Track | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  const triggerToast = (message: string) => {
+    setToastMessage(message);
+    toastOpacity.setValue(0);
+    Animated.sequence([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true
+      }),
+      Animated.delay(1600),
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true
+      })
+    ]).start(() => {
+      setToastMessage(null);
+    });
+  };
 
   // Filter logic
   const filteredTracks = activeFilter === 'liked'
@@ -220,6 +245,17 @@ export default function SongsScreen() {
   
                   <Pressable 
                     onPress={() => {
+                      setTrackForPlaylist(selectedTrack);
+                      setShowOptionsModal(false);
+                    }} 
+                    style={styles.optionRow}
+                  >
+                    <Icons.AddPlaylist size={22} color={theme.text} />
+                    <ThemedText style={styles.optionText}>Add to Playlist</ThemedText>
+                  </Pressable>
+  
+                  <Pressable 
+                    onPress={() => {
                       setShowOptionsModal(false);
                       // Navigate to dynamic artist detail!
                       router.push(`/artists/1`); // Redirect to featured artist showcase
@@ -237,6 +273,35 @@ export default function SongsScreen() {
               )}
             </Pressable>
           </Modal>
+        )}
+        {/* PREMIUM ADD TO PLAYLIST MODAL */}
+        <AddToPlaylistModal
+          visible={trackForPlaylist !== null}
+          track={trackForPlaylist}
+          onClose={() => setTrackForPlaylist(null)}
+          onAdded={(name) => triggerToast(`Added to playlist "${name}"`)}
+        />
+
+        {/* PREMIUM FLOAT TOAST */}
+        {toastMessage && (
+          <Animated.View style={[
+            styles.toastContainer, 
+            { 
+              opacity: toastOpacity, 
+              backgroundColor: theme.primary,
+              transform: [{
+                translateY: toastOpacity.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0]
+                })
+              }]
+            }
+          ]}>
+            <Icons.Checked size={16} color={theme.onPrimary || '#FFFFFF'} style={{ marginRight: 8 }} />
+            <ThemedText style={{ color: theme.onPrimary || '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>
+              {toastMessage}
+            </ThemedText>
+          </Animated.View>
         )}
 
       </SafeAreaView>
@@ -378,5 +443,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.two,
     paddingTop: Spacing.two,
+  },
+  toastContainer: {
+    position: 'absolute',
+    bottom: 156, // nested comfortably above floating mini-player!
+    left: '10%',
+    right: '10%',
+    borderRadius: 24,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    zIndex: 3000,
   },
 });

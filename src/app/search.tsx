@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { usePlayer, Track } from '@/context/player-context';
+import { AddToPlaylistModal } from '@/components/add-to-playlist-modal';
 import { useTheme } from '@/hooks/use-theme';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -40,6 +41,7 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
 
   const [query, setQuery] = useState('');
+  const [trackForPlaylist, setTrackForPlaylist] = useState<Track | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
@@ -168,6 +170,18 @@ export default function SearchScreen() {
               color={isLiked ? "#E03B3B" : theme.textSecondary} 
               fill={isLiked ? "#E03B3B" : "transparent"}
             />
+          </Pressable>
+          <Pressable 
+            onPress={(e) => {
+              e.stopPropagation();
+              setTrackForPlaylist(item);
+            }}
+            style={({ pressed }) => [
+              { padding: Spacing.two, borderRadius: 20 },
+              pressed && { backgroundColor: theme.primary + '15' }
+            ]}
+          >
+            <Icons.AddPlaylist size={20} color={theme.textSecondary} />
           </Pressable>
           <Pressable 
             onPress={(e) => {
@@ -316,6 +330,14 @@ export default function SearchScreen() {
           </ThemedText>
         </Animated.View>
       )}
+
+      {/* PREMIUM ADD TO PLAYLIST MODAL */}
+      <AddToPlaylistModal
+        visible={trackForPlaylist !== null}
+        track={trackForPlaylist}
+        onClose={() => setTrackForPlaylist(null)}
+        onAdded={(name) => triggerToast(`Added to playlist "${name}"`)}
+      />
 
     </ThemedView>
   );

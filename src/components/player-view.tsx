@@ -1,6 +1,7 @@
-import { BottomTabInset, Spacing } from '@/constants/theme';
-import { usePlayer, usePlayerProgress } from '@/context/player-context';
+import { usePlayer, usePlayerProgress, Track } from '@/context/player-context';
+import { AddToPlaylistModal } from './add-to-playlist-modal';
 import { useTheme } from '@/hooks/use-theme';
+import { BottomTabInset, Spacing } from '@/constants/theme';
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -58,6 +59,7 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
   const [showQueue, setShowQueue] = useState(false);
   const [showSleepTimer, setShowSleepTimer] = useState(false);
   const [sleepTimeRemaining, setSleepTimeRemaining] = useState<number | null>(null);
+  const [trackForPlaylist, setTrackForPlaylist] = useState<Track | null>(null);
 
   // Custom slider width layout tracker
   const [progressBarWidth, setProgressBarWidth] = useState(0);
@@ -428,6 +430,10 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
                 <Icons.Heart size={22} color="rgba(255,255,255,0.5)" />
               )}
             </Pressable>
+
+            <Pressable onPress={() => setTrackForPlaylist(currentTrack)} style={styles.footerIconBtn}>
+              <Icons.AddPlaylist size={22} color="rgba(255,255,255,0.5)" />
+            </Pressable>
           </View>
 
           {/* SIDE DRAWER: PLAYBACK QUEUE MODAL */}
@@ -542,9 +548,17 @@ export function PlayerView({ visible, onClose }: PlayerViewProps) {
             </Modal>
           )}
 
-        </SafeAreaView>
-      </Animated.View>
+        {/* PREMIUM ADD TO PLAYLIST MODAL */}
+        <AddToPlaylistModal
+          visible={trackForPlaylist !== null}
+          track={trackForPlaylist}
+          onClose={() => setTrackForPlaylist(null)}
+          onAdded={(name) => Alert.alert('Playlist Updated', `Added track to playlist "${name}"`)}
+        />
+
+      </SafeAreaView>
     </Animated.View>
+  </Animated.View>
   );
 }
 

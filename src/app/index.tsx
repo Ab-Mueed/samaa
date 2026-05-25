@@ -16,6 +16,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { usePlayer, Track } from '@/context/player-context';
+import { AddToPlaylistModal } from '@/components/add-to-playlist-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/components/icons';
@@ -49,6 +50,7 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [trackForPlaylist, setTrackForPlaylist] = useState<Track | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
@@ -315,6 +317,18 @@ export default function HomeScreen() {
                         <Pressable 
                           onPress={(e) => {
                             e.stopPropagation();
+                            setTrackForPlaylist(track);
+                          }}
+                          style={({ pressed }) => [
+                            { padding: Spacing.two, borderRadius: 20 },
+                            pressed && { backgroundColor: theme.primary + '15' }
+                          ]}
+                        >
+                          <Icons.AddPlaylist size={20} color={theme.textSecondary} />
+                        </Pressable>
+                        <Pressable 
+                          onPress={(e) => {
+                            e.stopPropagation();
                             addToQueue(track);
                             triggerToast(`"${track.title}" added to queue`);
                           }}
@@ -356,19 +370,33 @@ export default function HomeScreen() {
                       <ThemedText style={styles.trackListName} numberOfLines={1}>{track.title}</ThemedText>
                       <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{track.artist}</ThemedText>
                     </View>
-                    <Pressable 
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        addToQueue(track);
-                        triggerToast(`"${track.title}" added to queue`);
-                      }}
-                      style={({ pressed }) => [
-                        { padding: Spacing.two, borderRadius: 20 },
-                        pressed && { backgroundColor: theme.primary + '15' }
-                      ]}
-                    >
-                      <Icons.Queue size={20} color={theme.textSecondary} />
-                    </Pressable>
+                    <View style={{ flexDirection: 'row', gap: Spacing.one }}>
+                      <Pressable 
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setTrackForPlaylist(track);
+                        }}
+                        style={({ pressed }) => [
+                          { padding: Spacing.two, borderRadius: 20 },
+                          pressed && { backgroundColor: theme.primary + '15' }
+                        ]}
+                      >
+                        <Icons.AddPlaylist size={20} color={theme.textSecondary} />
+                      </Pressable>
+                      <Pressable 
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          addToQueue(track);
+                          triggerToast(`"${track.title}" added to queue`);
+                        }}
+                        style={({ pressed }) => [
+                          { padding: Spacing.two, borderRadius: 20 },
+                          pressed && { backgroundColor: theme.primary + '15' }
+                        ]}
+                      >
+                        <Icons.Queue size={20} color={theme.textSecondary} />
+                      </Pressable>
+                    </View>
                   </Pressable>
                 ))}
               </View>
@@ -461,6 +489,14 @@ export default function HomeScreen() {
             </ThemedText>
           </Animated.View>
         )}
+
+        {/* PREMIUM ADD TO PLAYLIST MODAL */}
+        <AddToPlaylistModal
+          visible={trackForPlaylist !== null}
+          track={trackForPlaylist}
+          onClose={() => setTrackForPlaylist(null)}
+          onAdded={(name) => triggerToast(`Added to playlist "${name}"`)}
+        />
 
       </SafeAreaView>
     </ThemedView>

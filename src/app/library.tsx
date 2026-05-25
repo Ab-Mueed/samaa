@@ -25,15 +25,26 @@ interface CustomPlaylist {
 }
 
 export default function LibraryScreen() {
-  const { tracks, likedTracks, history, playTrack, playAll, activeMode } = usePlayer();
+  const { 
+    tracks, 
+    likedTracks, 
+    history, 
+    playTrack, 
+    playAll, 
+    activeMode,
+    playlists,
+    createPlaylist,
+    removeTrackFromPlaylist,
+    toggleLike
+  } = usePlayer();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const [playlists, setPlaylists] = useState<CustomPlaylist[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
   const [showLikedSongsModal, setShowLikedSongsModal] = useState(false);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<CustomPlaylist | null>(null);
   
   // Extract history tracks
   const historyTracks = history.map(id => tracks.find(t => t.id === id)).filter((t): t is Track => !!t);
@@ -42,25 +53,9 @@ export default function LibraryScreen() {
 
   const handleCreatePlaylist = () => {
     if (playlistName.trim().length === 0) return;
-
-    // Create a new mock playlist with 2 random songs for demonstration
-    const randomTracks = [...tracks].sort(() => Math.random() - 0.5).slice(0, 2);
-
-    const newPlaylist: CustomPlaylist = {
-      id: Date.now().toString(),
-      name: playlistName,
-      tracks: randomTracks
-    };
-
-    setPlaylists([...playlists, newPlaylist]);
+    createPlaylist(playlistName.trim());
     setPlaylistName('');
     setShowCreateModal(false);
-  };
-
-  const playPlaylist = (trackList: Track[]) => {
-    if (trackList.length > 0) {
-      playAll(trackList, 0);
-    }
   };
 
 
@@ -113,7 +108,7 @@ export default function LibraryScreen() {
               {playlists.map((playlist) => (
                 <Pressable 
                   key={playlist.id}
-                  onPress={() => playPlaylist(playlist.tracks)}
+                  onPress={() => setSelectedPlaylist(playlist)}
                   style={({ pressed }) => [styles.playlistCard, { backgroundColor: theme.backgroundElement }, pressed && { opacity: 0.8 }]}
                 >
                   {playlist.tracks.length > 0 ? (
@@ -173,13 +168,30 @@ export default function LibraryScreen() {
                   </Pressable>
                 </View>
                 
+                {likedTracks.length > 0 && (
+                  <Pressable 
+                    onPress={() => {
+                      playAll(likedTracks, 0);
+                      setShowLikedSongsModal(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.playAllBtn, 
+                      { backgroundColor: theme.primary },
+                      pressed && { opacity: 0.8 }
+                    ]}
+                  >
+                    <Icons.Play size={18} color="#FFFFFF" fill="#FFFFFF" style={{ marginRight: 6 }} />
+                    <ThemedText style={styles.playAllText}>Play All</ThemedText>
+                  </Pressable>
+                )}
+                
                 <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
                   {likedTracks.length > 0 ? (
-                    likedTracks.map((track) => (
+                    likedTracks.map((track, idx) => (
                       <Pressable
                         key={track.id}
                         onPress={() => {
-                          playTrack(track);
+                          playAll(likedTracks, idx);
                           setShowLikedSongsModal(false);
                         }}
                         style={({ pressed }) => [
@@ -192,12 +204,99 @@ export default function LibraryScreen() {
                           <ThemedText style={styles.trackListName}>{track.title}</ThemedText>
                           <ThemedText type="small" themeColor="textSecondary">{track.artist}</ThemedText>
                         </View>
-                        <Icons.Play size={18} color={theme.primary} />
+                        <Pressable
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            toggleLike(track);
+                          }}
+                          style={{ padding: Spacing.two }}
+                        >
+                          <Icons.Heart size={18} color="#E03B3B" fill="#E03B3B" />
+                        </Pressable>
                       </Pressable>
                     ))
                   ) : (
                     <ThemedText themeColor="textSecondary" style={styles.emptyHistoryText}>
                       No liked Nasheeds yet. Tap the heart on songs to add them!
+                    </ThemedText>
+                  )}
+                </ScrollView>
+              </View>
+            </Pressable>
+          </Modal>
+        )}
+
+        {/* DIALOG POPUP: CUSTOM PLAYLIST DETAILED SHEET */}
+        {selectedPlaylist && (
+          <Modal 
+            visible={true} 
+            transparent={true} 
+            animationType="slide" 
+            onRequestClose={() => setSelectedPlaylist(null)}
+          >
+            <Pressable onPress={() => setSelectedPlaylist(null)} style={[styles.modalOverlay, { justifyContent: 'flex-end', alignItems: 'stretch' }]}>
+              <View style={[styles.likedSongsSheet, { backgroundColor: theme.background }]}>
+                <View style={styles.sheetHeader}>
+                  <ThemedText style={styles.sheetTitle}>{selectedPlaylist.name}</ThemedText>
+                  <Pressable onPress={() => setSelectedPlaylist(null)} style={styles.closeTextBtn}>
+                    <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
+                  </Pressable>
+                </View>
+
+                {selectedPlaylist.tracks.length > 0 && (
+                  <Pressable 
+                    onPress={() => {
+                      playAll(selectedPlaylist.tracks, 0);
+                      setSelectedPlaylist(null);
+                    }}
+                    style={({ pressed }) => [
+                      styles.playAllBtn, 
+                      { backgroundColor: theme.primary },
+                      pressed && { opacity: 0.8 }
+                    ]}
+                  >
+                    <Icons.Play size={18} color="#FFFFFF" fill="#FFFFFF" style={{ marginRight: 6 }} />
+                    <ThemedText style={styles.playAllText}>Play All</ThemedText>
+                  </Pressable>
+                )}
+                
+                <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                  {selectedPlaylist.tracks.length > 0 ? (
+                    selectedPlaylist.tracks.map((track, index) => (
+                      <Pressable
+                        key={track.id}
+                        onPress={() => {
+                          playAll(selectedPlaylist.tracks, index);
+                          setSelectedPlaylist(null);
+                        }}
+                        style={({ pressed }) => [
+                          styles.trackListItem,
+                          pressed && { backgroundColor: theme.backgroundSelected || 'rgba(0,0,0,0.04)' }
+                        ]}
+                      >
+                        <Image source={{ uri: track.coverUrl }} style={styles.trackListCoverArt} />
+                        <View style={styles.trackListMeta}>
+                          <ThemedText style={styles.trackListName}>{track.title}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">{track.artist}</ThemedText>
+                        </View>
+                        <Pressable
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            removeTrackFromPlaylist(selectedPlaylist.id, track.id);
+                            setSelectedPlaylist(prev => prev ? {
+                              ...prev,
+                              tracks: prev.tracks.filter(t => t.id !== track.id)
+                            } : null);
+                          }}
+                          style={{ padding: Spacing.two }}
+                        >
+                          <ThemedText style={{ color: '#E03B3B', fontSize: 18, fontWeight: 'bold' }}>✕</ThemedText>
+                        </Pressable>
+                      </Pressable>
+                    ))
+                  ) : (
+                    <ThemedText themeColor="textSecondary" style={styles.emptyHistoryText}>
+                      No tracks in this playlist yet. Add tracks from Search or Chanter listings!
                     </ThemedText>
                   )}
                 </ScrollView>
@@ -424,5 +523,19 @@ const styles = StyleSheet.create({
     marginTop: 40,
     fontSize: 14,
     paddingHorizontal: Spacing.four,
+  },
+  playAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.two,
+    borderRadius: 20,
+    marginBottom: Spacing.three,
+    gap: Spacing.two,
+  },
+  playAllText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 });

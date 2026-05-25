@@ -22,6 +22,12 @@ export interface Track {
   lyrics: LyricLine[];
 }
 
+export interface CustomPlaylist {
+  id: string;
+  name: string;
+  tracks: Track[];
+}
+
 export interface PlayerContextProps {
   tracks: Track[];
   currentTrack: Track | null;
@@ -60,6 +66,12 @@ export interface PlayerContextProps {
   isSwitchingMode: boolean;
   quranTracks: Track[];
   searchNasheeds: (query: string) => Promise<Track[]>;
+
+  // GLOBAL CUSTOM PLAYLISTS
+  playlists: CustomPlaylist[];
+  createPlaylist: (name: string) => string;
+  addTrackToPlaylist: (playlistId: string, track: Track) => void;
+  removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
 }
 
 export interface PlayerProgressContextProps {
@@ -115,6 +127,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [userName, setUserName] = useState<string>('Guest');
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
   const [isRepeat, setIsRepeat] = useState<boolean>(false);
+
+  // GLOBAL CUSTOM PLAYLISTS STATE
+  const [playlists, setPlaylists] = useState<CustomPlaylist[]>([]);
 
   // Mode reference to avoid stale closures in active tickers
   const activeModeRef = useRef<'nasheed' | 'quran'>('nasheed');
@@ -744,6 +759,43 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return await NasheedService.search(query);
   };
 
+  const createPlaylist = (name: string): string => {
+    const id = Date.now().toString();
+    const newPlaylist: CustomPlaylist = {
+      id,
+      name,
+      tracks: []
+    };
+    setPlaylists(prev => [...prev, newPlaylist]);
+    return id;
+  };
+
+  const addTrackToPlaylist = (playlistId: string, track: Track) => {
+    setPlaylists(prev => prev.map(pl => {
+      if (pl.id === playlistId) {
+        const exists = pl.tracks.some(t => t.id === track.id);
+        if (exists) return pl;
+        return {
+          ...pl,
+          tracks: [...pl.tracks, track]
+        };
+      }
+      return pl;
+    }));
+  };
+
+  const removeTrackFromPlaylist = (playlistId: string, trackId: string) => {
+    setPlaylists(prev => prev.map(pl => {
+      if (pl.id === playlistId) {
+        return {
+          ...pl,
+          tracks: pl.tracks.filter(t => t.id !== trackId)
+        };
+      }
+      return pl;
+    }));
+  };
+
   // Map dynamic values based on the currently active mode sandbox
   const contextTracks = activeMode === 'nasheed' ? nasheedTracks : quranTracks;
   const contextCurrentTrack = activeMode === 'nasheed' ? currentTrack : quranCurrentTrack;
@@ -795,6 +847,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isSwitchingMode,
     quranTracks,
     searchNasheeds,
+
+    // GLOBAL CUSTOM PLAYLISTS
+    playlists,
+    createPlaylist,
+    addTrackToPlaylist,
+    removeTrackFromPlaylist,
   }), [
     contextTracks,
     contextCurrentTrack,
@@ -818,6 +876,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     searchNasheeds,
     likedNasheedTracks,
     likedQuranTracks,
+    playlists,
   ]);
 
   const progressValue = React.useMemo(() => ({
